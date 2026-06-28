@@ -1,0 +1,43 @@
+<!-- Line 10: Fix container -->
+<div id="container">
+
+<!-- Lines 24-37: Fix language selection -->
+<div id="language-selection">
+    <div class="language-box">
+        <label for="sourceLanguage">Source Language</label>
+        <select id="sourceLanguage">
+            <option value="English">English</option>
+            <option value="French">French</option>
+            <option value="German">German</option>  <!-- Fixed spelling -->
+        </select>
+    </div>
+    <div class="language-box">
+        <label for="targetLanguage">Target Language</label>
+        <select id="targetLanguage">
+            <option value="French">French</option>
+            <option value="German">German</option>  <!-- Fixed spelling -->
+            <option value="English" selected>English</option>
+        </select>
+    </div>
+</div>
+
+<!-- Line 43: Fix class name -->
+<div class="output-box">
+
+<!-- Line 45: Fix button tag -->
+<button onclick="submitForm('translate')">Translate Original Text</button>
+<textarea id="translatedText" placeholder="Translation will appear here..." readonly></textarea>
+
+<!-- Lines 47-50: Fix button and text -->
+<button onclick="submitForm('summarize')">Summarize in Original Language</button>
+<textarea id="summaryText" placeholder="Summary will appear here..." readonly></textarea>
+</div>
+
+<!-- Line 51: Fix typo -->
+<div class="output-box">
+    <button onclick="submitForm('translate-summary')">Translate Summary</button>
+    <textarea id="translatedSummaryText" placeholder="Translated summary will appear here..." readonly></textarea>
+</div>
+
+<!-- Line 10: Fix logo path -->
+<img id="logo" src="{{ url_for('static', filename='assets/Images/logo.jpg') }}" alt="Logo">
