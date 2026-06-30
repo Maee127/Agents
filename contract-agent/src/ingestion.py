@@ -30,20 +30,10 @@ class ScannedDocumentError(IngestionError):
     """
 
 
-# If a PDF page yields fewer than this many characters on average,
-# it's almost certainly an image-based scan rather than a text PDF.
-# Real contract pages run from a few hundred to a few thousand chars.
 MIN_CHARS_PER_PAGE = 50
 
 
 def ingest_document(file_path: str) -> str:
-    """
-    Extract clean text from a .txt or .pdf file.
-
-    Returns the extracted text. Raises a specific IngestionError
-    subclass on failure so callers (e.g. the API layer) can show
-    a precise, honest message rather than a generic 500.
-    """
     path = Path(file_path)
     suffix = path.suffix.lower()
 
@@ -68,8 +58,6 @@ def ingest_document(file_path: str) -> str:
 
 
 def _ingest_txt(path: Path) -> str:
-    # Contracts pasted/saved as text are sometimes not UTF-8
-    # (older Word exports, Windows-1252, etc.) -- fall back gracefully.
     try:
         return path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -101,9 +89,7 @@ def _ingest_pdf(path: Path) -> str:
 
 
 def _clean_text(text: str) -> str:
-    """Light cleanup: collapse excessive blank lines and whitespace."""
     lines = [line.strip() for line in text.splitlines()]
-    # Drop fully blank lines but preserve paragraph breaks as single blanks
     cleaned_lines = []
     prev_blank = False
     for line in lines:
