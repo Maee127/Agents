@@ -18,20 +18,68 @@ import re
 from dataclasses import dataclass
 
 # Matches common contract header styles at the start of a line:
-#   "1.", "2.1", "12)", "Section 3:", "Section 3.1", "ARTICLE IV"
+#   "1.", "2.1", "12)", "Section 3:", "Section 3.1", "ARTICLE IV", "ARTICLE 2."
 # This is deliberately permissive -- false positives (treating a non-header
 # line as a header) are cheaper than false negatives here, because a wrongly
 # split header just creates one extra small chunk, while a missed header
 # risks merging unrelated clauses together.
+#
+# ARTICLE accepts BOTH roman numerals (ARTICLE IV) and plain digits
+# (ARTICLE 2.) -- real contracts use either style inconsistently, and the
+# original digit-less version silently failed to match numbered ARTICLEs.
 HEADER_PATTERN = re.compile(
     r"^(?:"
-    r"\d+(?:\.\d+)*[.)]\s+"          # 1.  /  2.1.  /  3)
-    r"|[A-Z]\.\s+"                    # A.  /  B.
-    r"|Section\s+\d+(?:\.\d+)*:?\s*"  # Section 3:  /  Section 3.1
-    r"|ARTICLE\s+[IVXLCDM]+\b"        # ARTICLE IV
+    r"\d+(?:\.\d+)*[.)]\s+"                 # 1.  /  2.1.  /  3)
+    r"|[A-Z]\.\s+"                           # A.  /  B.
+    r"|Section\s+\d+(?:\.\d+)*:?\s*"         # Section 3:  /  Section 3.1
+    r"|ARTICLE\s+(?:[IVXLCDM]+|\d+)(?:\.(?!\d))?\s*"  # ARTICLE IV  /  ARTICLE 2.
     r")",
     re.MULTILINE,
 )
+
+# Same header shapes as HEADER_PATTERN, but found anywhere in the text
+# rather than only at a line start. Used to catch headers that PDF
+# extraction has glued onto the end of the previous sentence (e.g.
+# "...the transfers. ARTICLE 2." ending up on one extracted line). Real
+# PDFs do this often -- a heading that's visually on its own line in the
+# original document isn't always followed by a literal newline once
+# pypdf extracts the text.
+#
+# Matched using a capturing group for the preceding punctuation + whitespace
+# rather than a lookbehind (Python's re module requires fixed-width
+# lookbehinds, which doesn't work well here since the whitespace run can
+# vary in length). The captured prev-punctuation and whitespace are
+# re-emitted unchanged in _maybe_break, only a newline is inserted.
+INLINE_HEADER_SEARCH_PATTERN = re.compile(
+    r"([.!?;:])(\s+)((?:"
+    r"\d+(?:\.\d+)*[.)]\s+(?=[A-Z])"
+    r"|[A-Z]\.\s+(?=[A-Z][a-z])"
+    r"|Section\s+\d+(?:\.\d+)*:?\s*"
+    r"|ARTICLE\s+(?:[IVXLCDM]+|\d+)(?:\.(?!\d))?\s*"
+    r"))"
+)
+
+
+def _break_inline_headers(text: str) -> str:
+    """
+    Insert a newline before any header-shaped text that appears mid-line
+    (typically because PDF extraction merged the end of one paragraph
+    with the start of the next numbered/lettered section). This must run
+    BEFORE _split_on_headers, since HEADER_PATTERN only matches at the
+    start of a line.
+
+    Only inserts a break when the character immediately before the
+    whitespace run is NOT already a newline -- i.e. only when the header
+    is genuinely glued mid-line, not when it's already on its own line.
+    """
+    def _maybe_break(match: re.Match) -> str:
+        prev_char, whitespace, header = match.group(1), match.group(2), match.group(3)
+        if "\n" in whitespace:
+            # Already on its own line -- nothing to fix here.
+            return match.group(0)
+        return f"{prev_char}\n{header}"
+
+    return INLINE_HEADER_SEARCH_PATTERN.sub(_maybe_break, text)
 
 # If a chunk produced by the regex pass exceeds this, it's a sign the
 # numbering heuristic missed a header somewhere inside it -- the
@@ -53,6 +101,7 @@ class Chunk:
 
 
 def chunk_document(text: str) -> list[Chunk]:
+    text = _break_inline_headers(text)
     structural_chunks = _split_on_headers(text)
 
     final_chunks: list[str] = []
