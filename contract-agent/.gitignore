@@ -6,3 +6,10 @@ __pycache__/
 *.pyc
 tests/test_run_1/
 tests/sample_contracts/
+.env
+*.env
+*.env.*env.env/
+run.py/
+__init__.py/
+tests/__init__.py/
+tests/test_pipeline.py/
