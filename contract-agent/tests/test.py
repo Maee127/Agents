@@ -40,14 +40,15 @@
 # tests/test.py
 import sys, os
 
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(SCRIPT_DIR, "..", "src")
 sys.path.insert(0, SRC_DIR)
 
 import anthropic
-from ingestion import ingest_document, IngestionError
-from chunking import chunk_document
-from analyzer import analyze_chunk, AnalyzerError
+from src.ingestion import ingest_document, IngestionError
+from src.chunking import chunk_document
+from src.analyzer import analyze_chunk, AnalyzerError
 
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "test_run_2")  # new folder, so test_run_1 stays as a record
 os.makedirs(OUTPUT_DIR, exist_ok=True)
