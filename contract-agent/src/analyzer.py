@@ -1,199 +1,185 @@
 """
-Analyzer module: uses Groq API to analyze individual contract clauses.
-Each clause is evaluated for risk level, summary, and identified issues.
+Analyzer: turn a single contract Chunk into a structured verdict.
+
+Uses Groq's API (via the OpenAI-compatible SDK) for the LLM call.
+Structured output is enforced by:
+  1. A strict JSON-only system prompt
+  2. Schema validation in code after parsing
+  3. A hallucination guard that verifies quoted_text exists verbatim
+     in the source clause -- the single most important trust mechanism.
+
+Do NOT remove the hallucination guard to "simplify" things. A risk
+flag that can't point to exact source text is untrustworthy and will
+erode client confidence immediately in a live demo.
 """
 
-from dataclasses import dataclass, field
-from openai import OpenAI
-from typing import Optional, List
 import json
 import re
+from dataclasses import dataclass
+from typing import Literal
+
+from openai import OpenAI
+
+from chunking import Chunk
+
+RiskLevel = Literal["low", "medium", "high"]
+ClauseType = Literal[
+    "payment", "liability", "termination", "confidentiality",
+    "indemnification", "intellectual_property", "dispute_resolution",
+    "term_renewal", "administrative", "other",
+]
 
 
 @dataclass
 class ClauseVerdict:
-    """Result of analyzing a single clause/chunk."""
-    clause_index: int
-    clause_text: str
-    heading: Optional[str] = None  # Store the heading from chunking
-    risk_level: str = "unknown"  # "low", "medium", "high"
-    summary: str = ""
-    issues: List[str] = field(default_factory=list)
-    recommendation: Optional[str] = None
+    chunk_index: int
+    heading: str | None
+    clause_type: ClauseType
+    summary: str
+    risk_level: RiskLevel
+    risk_reason: str      # empty string if risk_level is "low"
+    quoted_text: str      # verbatim from source; empty string if risk_level is "low"
 
 
 class AnalyzerError(Exception):
-    """Raised when analysis of a single clause fails."""
-    pass
+    """Raised when a clause can't be turned into a reliable verdict."""
+
+
+SYSTEM_PROMPT = """\
+You are a contract-review assistant. You analyze one clause at a time \
+from a business contract and report what it means and whether it poses \
+risk to the party receiving or signing the contract.
+
+You MUST respond with ONLY a raw JSON object. No markdown, no code \
+fences, no explanation before or after. Just the JSON object.
+
+Required JSON schema:
+{
+  "clause_type": one of: payment | liability | termination | \
+confidentiality | indemnification | intellectual_property | \
+dispute_resolution | term_renewal | administrative | other,
+  "summary": "One plain-language sentence: what this clause commits \
+the reader to.",
+  "risk_level": one of: low | medium | high,
+  "risk_reason": "Plain-language explanation of WHY this risk level \
+was assigned. Empty string if risk_level is low.",
+  "quoted_text": "The exact substring from the clause text that \
+justifies risk_reason. Must be copied verbatim. Empty string if \
+risk_level is low."
+}
+
+Rules:
+- Use administrative for titles, definitions, or boilerplate with no \
+real obligation.
+- Only flag medium/high when there is a concrete, specific reason.
+- high means real exposure: uncapped liability, one-sided \
+indemnification, auto-renewal with short opt-out, broad non-competes, \
+unilateral termination for one party only, etc.
+- quoted_text MUST be copied verbatim from the clause -- never \
+paraphrase it and never invent text that is not there.
+- You are flagging business risk, not giving legal advice.\
+"""
+
+
+def _extract_json(text: str) -> dict:
+    """
+    Parse JSON from the model response, handling the common case
+    where the model wraps it in markdown code fences despite being
+    told not to.
+    """
+    text = text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    text = text.strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise AnalyzerError(
+            f"Model returned invalid JSON: {e}\nRaw response: {text!r}"
+        )
+
+
+REQUIRED_FIELDS = {"clause_type", "summary", "risk_level", "risk_reason", "quoted_text"}
+VALID_RISK_LEVELS = {"low", "medium", "high"}
+VALID_CLAUSE_TYPES = {
+    "payment", "liability", "termination", "confidentiality",
+    "indemnification", "intellectual_property", "dispute_resolution",
+    "term_renewal", "administrative", "other",
+}
+
+
+def _validate(data: dict, chunk_index: int) -> None:
+    missing = REQUIRED_FIELDS - data.keys()
+    if missing:
+        raise AnalyzerError(
+            f"Chunk {chunk_index}: model response missing fields: {missing}"
+        )
+    if data["risk_level"] not in VALID_RISK_LEVELS:
+        raise AnalyzerError(
+            f"Chunk {chunk_index}: invalid risk_level {data['risk_level']!r}"
+        )
+    if data["clause_type"] not in VALID_CLAUSE_TYPES:
+        data["clause_type"] = "other"
 
 
 def analyze_chunk(
-    chunk,  # Expects a Chunk object with .index, .heading, .text
+    chunk: Chunk,
     client: OpenAI,
-    model: str = "llama-3.3-70b-versatile"
+    model: str = "llama-3.3-70b-versatile",
 ) -> ClauseVerdict:
     """
-    Analyze a single clause/chunk using the Groq API.
+    Analyze one chunk and return a ClauseVerdict.
 
-    Args:
-        chunk: A Chunk object with .index, .heading, and .text attributes
-        client: Initialized OpenAI client configured for Groq
-        model: Groq model to use
-
-    Returns:
-        ClauseVerdict with analysis results
-
-    Raises:
-        AnalyzerError: If the API call or parsing fails
+    Raises AnalyzerError if:
+    - The API call fails
+    - The response is not valid JSON with required fields
+    - quoted_text is not found verbatim in the source (hallucination guard)
     """
     try:
-        # Build the context with heading if available
-        heading_context = f" (Heading: {chunk.heading})" if chunk.heading else ""
-        
-        # Build the prompt for clause analysis
-        prompt = f"""You are a legal contract analyst. Analyze the following clause from a contract and provide a structured assessment.
-
-Clause {chunk.index}{heading_context}:
-
-Provide your analysis in the following JSON format:
-{{
-    "risk_level": "low" or "medium" or "high",
-    "summary": "Brief 1-2 sentence summary of what this clause does",
-    "issues": ["Issue 1", "Issue 2", ...],
-    "recommendation": "Specific recommendation for negotiation or revision"
-}}
-
-Consider these factors:
-- Does the clause create significant liability?
-- Is the language favorable or unfavorable to the party?
-- Are there any ambiguities or loopholes?
-- Does it comply with common legal standards?
-"""
-
-        # Make the API call to Groq
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a legal contract analyst. Always respond with valid JSON."
-                },
+                {"role": "system", "content": SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": prompt
-                }
+                    "content": (
+                        f"Clause heading: {chunk.heading or '(none)'}\n\n"
+                        f"Clause text:\n{chunk.text}"
+                    ),
+                },
             ],
-            temperature=0.1,  # Low temperature for consistency
+            temperature=0.1,
             max_tokens=1024,
-            # Note: Groq doesn't support response_format parameter yet
         )
-        
-        # Extract and parse the JSON response
-        result_text = response.choices[0].message.content
-        
-        # Try to parse JSON, with fallback for non-JSON responses
-        try:
-            result = json.loads(result_text)
-        except json.JSONDecodeError:
-            # Fallback: try to extract JSON from the text using regex
-            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
-            else:
-                # If no JSON found, create a default structure from the text
-                result = {
-                    "risk_level": "medium",
-                    "summary": result_text[:200],  # First 200 chars as summary
-                    "issues": ["Could not parse structured response"],
-                    "recommendation": "Review clause manually"
-                }
-        
-        # Create and return the ClauseVerdict
-        return ClauseVerdict(
-            clause_index=chunk.index,
-            clause_text=chunk.text,
-            heading=chunk.heading,
-            risk_level=result.get("risk_level", "medium").lower(),
-            summary=result.get("summary", "No summary provided"),
-            issues=result.get("issues", []),
-            recommendation=result.get("recommendation")
-        )
-        
     except Exception as e:
-        # Catch any API or parsing errors and wrap them
         raise AnalyzerError(
-            f"Failed to analyze chunk {chunk.index} (heading: {chunk.heading}): {str(e)}"
+            f"Chunk {chunk.index}: API call failed: {e}"
         ) from e
 
+    raw = response.choices[0].message.content
+    data = _extract_json(raw)
+    _validate(data, chunk.index)
 
-def analyze_chunks_batch(
-    chunks,
-    client: OpenAI,
-    model: str = "llama-3.3-70b-versatile",
-    max_concurrent: int = 5,
-    verbose: bool = False
-) -> List[ClauseVerdict]:
-    """
-    Analyze multiple chunks in batch (with rate limiting and progress tracking).
-    """
-    results = []
-    total_chunks = len(chunks)
-    
-    for i, chunk in enumerate(chunks):
-        if verbose:
-            print(f"Analyzing chunk {i+1}/{total_chunks} (Index: {chunk.index})...")
-        
-        try:
-            verdict = analyze_chunk(chunk, client, model)
-            results.append(verdict)
-            if verbose:
-                print(f"  ✓ Risk: {verdict.risk_level}")
-        except AnalyzerError as e:
-            if verbose:
-                print(f"  ✗ Error: {e}")
-            # Create a fallback verdict
-            results.append(ClauseVerdict(
-                clause_index=chunk.index,
-                clause_text=chunk.text,
-                heading=chunk.heading,
-                risk_level="unknown",
-                summary="Analysis failed",
-                issues=[str(e)],
-                recommendation="Manual review recommended"
-            ))
-    
-    return results
+    # --- Hallucination guard ---
+    # Verify quoted_text actually appears verbatim in the source clause.
+    # A quote the model invented or paraphrased is a fabrication --
+    # a client who spots one loses trust in everything else the tool says.
+    quoted = data.get("quoted_text", "").strip()
+    if quoted and quoted not in chunk.text:
+        raise AnalyzerError(
+            f"Chunk {chunk.index}: quoted_text not found verbatim in "
+            f"source clause -- possible hallucination.\n"
+            f"Quoted: {quoted!r}\n"
+            f"Source: {chunk.text[:200]!r}"
+        )
 
-
-# Helper function to get a summary of the analysis
-def summarize_report(report) -> str:
-    """
-    Generate a human-readable summary of a ContractReport.
-    """
-    total_clauses = len(report.verdicts)
-    failed_count = len(report.failed_chunk_indices)
-    
-    summary = f"""
-    Contract Analysis Summary
-    =========================
-    File: {report.file_path}
-    Total clauses analyzed: {total_clauses}
-    Failed clauses: {failed_count}
-    
-    Risk Distribution:
-    - High risk: {report.high_risk_count}
-    - Medium risk: {report.medium_risk_count}
-    - Low risk: {total_clauses - report.high_risk_count - report.medium_risk_count}
-    """
-    
-    # Add details for high-risk clauses
-    high_risk_clauses = [v for v in report.verdicts if v.risk_level == "high"]
-    if high_risk_clauses:
-        summary += "\n\nHigh-Risk Clauses:\n"
-        for v in high_risk_clauses[:5]:  # Show first 5
-            heading_info = f" (Heading: {v.heading})" if v.heading else ""
-            summary += f"  - Clause {v.clause_index}{heading_info}: {v.summary[:100]}...\n"
-        if len(high_risk_clauses) > 5:
-            summary += f"  ... and {len(high_risk_clauses) - 5} more high-risk clauses\n"
-    
-    return summary
+    return ClauseVerdict(
+        chunk_index=chunk.index,
+        heading=chunk.heading,
+        clause_type=data["clause_type"],
+        summary=data["summary"],
+        risk_level=data["risk_level"],
+        risk_reason=data.get("risk_reason", ""),
+        quoted_text=quoted,
+    )

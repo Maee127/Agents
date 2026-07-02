@@ -25,8 +25,8 @@ class EmptyDocumentError(IngestionError):
 class ScannedDocumentError(IngestionError):
     """
     Raised when a PDF is very likely a scanned image (little or no
-    embedded text per page). This is a known, planned limitation for
-    v1 -- not a bug -- so the message should say so clearly.
+    embedded text per page). Known v1 limitation -- message says so
+    clearly rather than crashing silently.
     """
 
 
