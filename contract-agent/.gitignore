@@ -1,15 +1,12 @@
-tests/test_run_1/
-tests/sample_contracts/
+# Python
 __pycache__/
 *.pyc
-__pycache__/
-*.pyc
-tests/test_run_1/
-tests/sample_contracts/
+*.pyo
+
+# Environment
 .env
-*.env
-*.env.*env.env/
-run.py/
-__init__.py/
-tests/__init__.py/
-tests/test_pipeline.py/
+
+# Test outputs and sample data (not committed -- too large, may contain real contracts)
+tests/test_run_1/
+tests/test_run_2/
+tests/sample_contracts/
