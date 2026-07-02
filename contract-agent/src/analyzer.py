@@ -123,6 +123,38 @@ def _validate(data: dict, chunk_index: int) -> None:
         data["clause_type"] = "other"
 
 
+def _normalize_for_comparison(text: str) -> str:
+    """
+    Normalize text for the hallucination guard comparison only.
+    Never used to modify stored text -- only for the guard's string check.
+
+    Two-step normalization handles two distinct PDF extraction artifacts:
+
+    1. Whitespace/newline mismatches: pypdf sometimes produces 'or\nin part'
+       where the original has 'or in part' on one line. The model quotes
+       the clean single-line version; the source has a newline. Collapsing
+       all whitespace runs to a single space makes them compare equal.
+
+    2. Mid-word artifact spaces: some PDFs with custom font encoding produce
+       'subs titution' or 'w ithout'. The model reconstructs the real word
+       and quotes 'substitution'; the source has 'subs titution'. After step
+       1 collapses whitespace runs, step 2 removes single spaces between
+       word characters to collapse these artifacts.
+
+    Order matters: step 1 first, then step 2. If step 2 ran first on the
+    raw text, it would incorrectly collapse real word boundaries that happen
+    to be separated by a single space.
+
+    Real hallucinations -- text that simply isn't in the clause at all --
+    still fail this check even after normalization.
+    """
+    # Step 1: collapse all whitespace runs to a single space
+    text = re.sub(r'\s+', ' ', text)
+    # Step 2: remove single spaces between word characters (artifact spaces)
+    text = re.sub(r'(?<=\w) (?=\w)', '', text)
+    return text
+
+
 def analyze_chunk(
     chunk: Chunk,
     client: OpenAI,
@@ -162,14 +194,24 @@ def analyze_chunk(
     _validate(data, chunk.index)
 
     # --- Hallucination guard ---
-    # Verify quoted_text actually appears verbatim in the source clause.
-    # A quote the model invented or paraphrased is a fabrication --
-    # a client who spots one loses trust in everything else the tool says.
+    # Verify quoted_text exists in the source clause after normalizing
+    # both sides for mid-word space artifacts from PDF extraction.
+    #
+    # We check _normalize_spaces(quoted) in _normalize_spaces(chunk.text)
+    # rather than raw quoted in chunk.text, because pypdf sometimes inserts
+    # spaces inside words (e.g. 'subs titution'). The model reconstructs
+    # the real words and quotes the clean version, which genuinely does
+    # appear in the source -- just with artifact spaces collapsed.
+    #
+    # Normalizing both sides means: a real hallucination (text that simply
+    # isn't in the clause at all) still gets caught, while a quote that's
+    # only "missing" because of extraction artifacts passes correctly.
     quoted = data.get("quoted_text", "").strip()
-    if quoted and quoted not in chunk.text:
+    if quoted and _normalize_for_comparison(quoted) not in _normalize_for_comparison(chunk.text):
         raise AnalyzerError(
-            f"Chunk {chunk.index}: quoted_text not found verbatim in "
-            f"source clause -- possible hallucination.\n"
+            f"Chunk {chunk.index}: quoted_text not found in source clause "
+            f"(checked after normalizing whitespace and extraction artifacts) -- "
+            f"possible hallucination.\n"
             f"Quoted: {quoted!r}\n"
             f"Source: {chunk.text[:200]!r}"
         )

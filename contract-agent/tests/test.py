@@ -12,6 +12,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(SCRIPT_DIR, "..", ".env"))
+api_key = os.getenv("GROQ_API_KEY")
+print(f"Key loaded: {repr(api_key)}")
 
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "test_run_2")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
