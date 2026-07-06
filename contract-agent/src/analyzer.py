@@ -1,7 +1,7 @@
 """
 Analyzer: turn a single contract Chunk into a structured verdict.
 
-Uses Groq's API (via the OpenAI-compatible SDK) for the LLM call.
+Uses the local Qwen2.5-7B model (via transformers) for the LLM call.
 Structured output is enforced by:
   1. A strict JSON-only system prompt
   2. Schema validation in code after parsing
@@ -18,9 +18,8 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-from openai import OpenAI
-
 from chunking import Chunk
+from local_llm import LocalLLMClient
 
 RiskLevel = Literal["low", "medium", "high"]
 ClauseType = Literal[
@@ -157,8 +156,8 @@ def _normalize_for_comparison(text: str) -> str:
 
 def analyze_chunk(
     chunk: Chunk,
-    client: OpenAI,
-    model: str = "llama-3.3-70b-versatile",
+    client: LocalLLMClient,
+    model: str = "qwen2.5-7b",
 ) -> ClauseVerdict:
     """
     Analyze one chunk and return a ClauseVerdict.

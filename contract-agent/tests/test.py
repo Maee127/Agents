@@ -8,12 +8,11 @@ sys.path.insert(0, SRC_DIR)
 from ingestion import ingest_document, IngestionError
 from chunking import chunk_document
 from analyzer import analyze_chunk, AnalyzerError
-from openai import OpenAI
+from local_llm import LocalLLMClient
 from dotenv import load_dotenv
 
+
 load_dotenv(os.path.join(SCRIPT_DIR, "..", ".env"))
-api_key = os.getenv("GROQ_API_KEY")
-print(f"Key loaded: {repr(api_key)}")
 
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "test_run_2")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -21,15 +20,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 SAMPLES_DIR = os.path.join(SCRIPT_DIR, "sample_contracts")
 TARGET_FILES = ["Contract-2.pdf", "Contract-3.pdf", "Contract-5.pdf"]
 
-api_key = os.getenv("GROQ_API_KEY")
-if not api_key:
-    print("ERROR: GROQ_API_KEY not found in .env file.")
-    sys.exit(1)
-
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://api.groq.com/openai/v1",
-)
+client = LocalLLMClient()
 
 for file_name in TARGET_FILES:
     file_path = os.path.join(SAMPLES_DIR, file_name)

@@ -7,15 +7,14 @@ three modules and translates their errors into one consistent shape
 the API layer (week 2) can rely on.
 """
 
-import os
 from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 from ingestion import ingest_document, IngestionError
 from chunking import chunk_document
 from analyzer import analyze_chunk, AnalyzerError, ClauseVerdict
+from local_llm import LocalLLMClient
 
 load_dotenv()
 
@@ -41,22 +40,14 @@ class PipelineError(Exception):
         self.original = original
 
 
-def _make_groq_client() -> OpenAI:
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "GROQ_API_KEY not found. Please set it in your .env file."
-        )
-    return OpenAI(
-        api_key=api_key,
-        base_url="https://api.groq.com/openai/v1",
-    )
+def _make_llm_client() -> LocalLLMClient:
+    return LocalLLMClient()
 
 
 def analyze_contract(
     file_path: str,
-    client: OpenAI | None = None,
-    model: str = "llama-3.3-70b-versatile",
+    client: LocalLLMClient | None = None,
+    model: str = "qwen2.5-7b",
 ) -> ContractReport:
     """
     Run the full pipeline on a single contract file.
@@ -66,7 +57,7 @@ def analyze_contract(
     raised -- one bad clause never takes down the whole report.
     """
     if client is None:
-        client = _make_groq_client()
+        client = _make_llm_client()
 
     try:
         text = ingest_document(file_path)
