@@ -1,6 +1,11 @@
 """
 Local LLM client: load Qwen2.5 from the project's qwen2.5-7b folder via
 transformers and expose an OpenAI-compatible chat.completions interface.
+
+OPTIMIZATIONS:
+- GPU acceleration if CUDA is available (fallback to CPU)
+- KV cache reuse for faster generation
+- Device-aware tensor handling
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 _model = None
 _tokenizer = None
 _model_path: Path | None = None
+_device: str | None = None
 
 
 def default_model_path() -> Path:
@@ -25,7 +31,7 @@ def default_model_path() -> Path:
 
 
 def _load() -> None:
-    global _model, _tokenizer, _model_path
+    global _model, _tokenizer, _model_path, _device
 
     path = default_model_path()
     if _model is not None and _model_path == path:
@@ -37,13 +43,17 @@ def _load() -> None:
             "Set LOCAL_MODEL_PATH in .env if the model lives elsewhere."
         )
 
+    # Detect device: GPU if CUDA available, else CPU
+    _device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"[INFO] Loading model on device: {_device.upper()}")
+    
     _tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
     _model = AutoModelForCausalLM.from_pretrained(
         path,
         dtype=torch.float16,
         low_cpu_mem_usage=True,
     )
-    _model.to("cpu")
+    _model.to(_device)
     _model.eval()
     _model_path = path
 
@@ -77,17 +87,19 @@ class _Completions:
 
         assert _model is not None and _tokenizer is not None
         assert messages is not None
+        assert _device is not None
 
         prompt = _tokenizer.apply_chat_template(
             messages,
             tokenize=False,
             add_generation_prompt=True,
         )
-        inputs = _tokenizer(prompt, return_tensors="pt").to(_model.device)
+        inputs = _tokenizer(prompt, return_tensors="pt").to(_device)
 
         gen_kwargs: dict = {
             "max_new_tokens": max_tokens,
             "pad_token_id": _tokenizer.eos_token_id,
+            "use_cache": True,  # FIX 3: Enable KV cache reuse for faster generation
         }
         if temperature > 0:
             gen_kwargs["temperature"] = max(temperature, 1e-5)
