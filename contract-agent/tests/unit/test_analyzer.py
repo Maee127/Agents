@@ -221,6 +221,6 @@ def test_text_ingestion_reads_utf8_file(tmp_path):
         encoding="utf-8",
     )
 
-    result = extract_text(contract)
+    result = ingest_document(contract)
 
     assert "Payment is due within 30 days." in result

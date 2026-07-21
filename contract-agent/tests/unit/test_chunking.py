@@ -1,5 +1,5 @@
 from src.chunking import MAX_CHUNK_CHARS, chunk_document
-
+import json
 
 def test_chunk_document_splits_numbered_sections():
     text = """
