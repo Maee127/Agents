@@ -8,8 +8,7 @@ __pycache__/
 
 # Test outputs and sample data (not committed -- too large, may contain real contracts)
 tests/test_run_1/
-tests/test_run_2/
-tests/sample_contracts/
+
 qwen2.5-7b/
 *.pkl
 *.h5
