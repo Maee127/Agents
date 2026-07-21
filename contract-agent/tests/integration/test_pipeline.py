@@ -35,3 +35,4 @@ def test_pipeline_analyzes_text_contract(
     assert len(report.verdicts) == 1
     assert report.verdicts[0].clause_type == "payment"
     assert report.failed_chunk_indices == []
+    
