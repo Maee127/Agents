@@ -8,6 +8,7 @@ the API layer (week 2) can rely on.
 """
 
 from dataclasses import dataclass, field
+from typing import Callable
 
 from dotenv import load_dotenv
 
@@ -48,6 +49,7 @@ def analyze_contract(
     file_path: str,
     client: LocalLLMClient | None = None,
     model: str = "qwen2.5-7b",
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> ContractReport:
     """
     Run the full pipeline on a single contract file.
@@ -55,6 +57,10 @@ def analyze_contract(
     Raises PipelineError if the document itself can't be read.
     Per-clause failures are collected in failed_chunk_indices, never
     raised -- one bad clause never takes down the whole report.
+
+    progress_callback, if given, is called as (chunks_done, chunks_total)
+    after each chunk finishes (successfully or not), so callers like the
+    web API can report live progress.
     """
     if client is None:
         client = _make_llm_client()
@@ -67,11 +73,17 @@ def analyze_contract(
     chunks = chunk_document(text)
     report = ContractReport(file_path=file_path)
 
-    for chunk in chunks:
+    total = len(chunks)
+    if progress_callback is not None:
+        progress_callback(0, total)
+
+    for done, chunk in enumerate(chunks, start=1):
         try:
             verdict = analyze_chunk(chunk, client, model=model)
             report.verdicts.append(verdict)
         except AnalyzerError:
             report.failed_chunk_indices.append(chunk.index)
+        if progress_callback is not None:
+            progress_callback(done, total)
 
     return report
