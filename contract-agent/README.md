@@ -35,7 +35,8 @@ The Contract Agent is designed to help users quickly understand and analyze cont
 ## Tech Stack
 
 - **Python** 3.13
-- **OpenAI API** — For additional capabilities
+- **FastAPI + Uvicorn** — Web API and built-in browser UI
+- **Qwen2.5-7B (local)** — Clause analysis via Transformers
 - **PyPDF** — PDF processing and extraction
 - **PyTorch & Transformers** — NLP and model support
 - **Accelerate** — GPU acceleration support
@@ -61,6 +62,23 @@ contract-agent/
 └── .env                   # Environment variables 
 ```
 
+
+### Running the Web App (MVP)
+
+Install dependencies and start the server:
+
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Then open http://127.0.0.1:8000 in your browser. Upload a `.pdf` or
+`.txt` contract and watch the clause-by-clause analysis with live
+progress. Interactive API docs are available at
+http://127.0.0.1:8000/docs.
+
+> **Note:** the first analysis loads the local Qwen2.5-7B model into
+> memory, which can take several minutes (especially on CPU).
 
 ### Running the Script
 
