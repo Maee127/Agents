@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contract Agent</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: #2d3646;
+    --text: #e6edf3;
+    --muted: #8b98a9;
+    --accent: #4f8cff;
+    --accent-soft: rgba(79, 140, 255, 0.12);
+    --high: #f85149;
+    --high-soft: rgba(248, 81, 73, 0.12);
+    --medium: #d29922;
+    --medium-soft: rgba(210, 153, 34, 0.12);
+    --low: #3fb950;
+    --low-soft: rgba(63, 185, 80, 0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.55;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  header { text-align: center; margin-bottom: 36px; }
+  header h1 { font-size: 1.9rem; font-weight: 650; letter-spacing: -0.02em; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); margin-top: 6px; font-size: 0.98rem; }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .drop-zone .icon { font-size: 2.2rem; margin-bottom: 10px; }
+  .drop-zone strong { color: var(--accent); }
+  .drop-zone .hint { color: var(--muted); font-size: 0.88rem; margin-top: 6px; }
+  #file-input { display: none; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px;
+    margin-top: 22px;
+  }
+  .hidden { display: none !important; }
+
+  .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .progress-header .filename { font-weight: 600; overflow-wrap: anywhere; }
+  .progress-header .stage { color: var(--muted); font-size: 0.9rem; white-space: nowrap; margin-left: 16px; }
+  .bar-track {
+    height: 10px; border-radius: 5px; background: var(--surface-2);
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  .bar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), #7ab0ff);
+    border-radius: 5px;
+    transition: width 0.5s ease;
+  }
+  .bar-fill.indeterminate {
+    width: 30%;
+    animation: slide 1.4s ease-in-out infinite;
+  }
+  @keyframes slide {
+    0% { margin-left: -30%; }
+    100% { margin-left: 100%; }
+  }
+  .progress-note { color: var(--muted); font-size: 0.86rem; margin-top: 10px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat .num { font-size: 1.6rem; font-weight: 700; }
+  .stat .label { color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat.high .num { color: var(--high); }
+  .stat.medium .num { color: var(--medium); }
+  .stat.low .num { color: var(--low); }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  .clause {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--low);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .clause.high { border-left-color: var(--high); }
+  .clause.medium { border-left-color: var(--medium); }
+  .clause-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .clause-heading { font-weight: 650; font-size: 0.95rem; }
+  .badge {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; padding: 2px 10px; border-radius: 999px;
+  }
+  .badge.high { background: var(--high-soft); color: var(--high); }
+  .badge.medium { background: var(--medium-soft); color: var(--medium); }
+  .badge.low { background: var(--low-soft); color: var(--low); }
+  .badge.type { background: var(--accent-soft); color: var(--accent); text-transform: none; letter-spacing: 0; }
+  .clause .summary { font-size: 0.94rem; }
+  .risk-detail {
+    margin-top: 10px; padding: 12px 14px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .risk-detail .why { color: var(--text); }
+  .risk-detail blockquote {
+    margin-top: 8px; padding: 8px 12px;
+    border-left: 3px solid var(--border);
+    color: var(--muted); font-style: italic;
+    overflow-wrap: anywhere;
+  }
+
+  .error-panel { border-color: var(--high); }
+  .error-panel p { color: var(--high); }
+
+  .btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 10px 22px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    margin-top: 16px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Contract <span>Agent</span></h1>
+    <p>Upload a contract — get clause-by-clause risk analysis, powered by a local LLM.</p>
+  </header>
+
+  <div class="drop-zone" id="drop-zone">
+    <div class="icon">&#128196;</div>
+    <div><strong>Choose a file</strong> or drag it here</div>
+    <div class="hint">PDF or TXT, up to 20 MB</div>
+    <input type="file" id="file-input" accept=".pdf,.txt" />
+  </div>
+
+  <div class="panel hidden" id="progress-panel">
+    <div class="progress-header">
+      <div class="filename" id="progress-filename"></div>
+      <div class="stage" id="progress-stage">Queued…</div>
+    </div>
+    <div class="bar-track"><div class="bar-fill indeterminate" id="bar-fill"></div></div>
+    <div class="progress-note">The first analysis loads the model into memory and can take a few minutes. Each clause is analyzed individually.</div>
+  </div>
+
+  <div class="panel hidden error-panel" id="error-panel">
+    <p id="error-message"></p>
+    <button class="btn" onclick="reset()">Try another file</button>
+  </div>
+
+  <div class="panel hidden" id="results-panel">
+    <div class="stats" id="stats"></div>
+    <div class="filters" id="filters"></div>
+    <div id="clauses"></div>
+    <button class="btn" onclick="reset()">Analyze another contract</button>
+  </div>
+
+  <footer>For analysis and summary purposes only — always have qualified legal professionals review contracts before signing.</footer>
+</div>
+
+<script>
+const dropZone = document.getElementById("drop-zone");
+const fileInput = document.getElementById("file-input");
+const progressPanel = document.getElementById("progress-panel");
+const errorPanel = document.getElementById("error-panel");
+const resultsPanel = document.getElementById("results-panel");
+
+let pollTimer = null;
+let currentVerdicts = [];
+let activeFilter = "all";
+
+dropZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length) upload(fileInput.files[0]);
+});
+["dragover", "dragenter"].forEach(evt =>
+  dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add("dragover"); })
+);
+["dragleave", "drop"].forEach(evt =>
+  dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove("dragover"); })
+);
+dropZone.addEventListener("drop", e => {
+  if (e.dataTransfer.files.length) upload(e.dataTransfer.files[0]);
+});
+
+function reset() {
+  clearInterval(pollTimer);
+  fileInput.value = "";
+  [progressPanel, errorPanel, resultsPanel].forEach(p => p.classList.add("hidden"));
+  dropZone.classList.remove("hidden");
+}
+
+function showError(message) {
+  clearInterval(pollTimer);
+  progressPanel.classList.add("hidden");
+  document.getElementById("error-message").textContent = message;
+  errorPanel.classList.remove("hidden");
+}
+
+async function upload(file) {
+  reset();
+  dropZone.classList.add("hidden");
+  document.getElementById("progress-filename").textContent = file.name;
+  document.getElementById("progress-stage").textContent = "Uploading…";
+  progressPanel.classList.remove("hidden");
+
+  const form = new FormData();
+  form.append("file", file);
+
+  let resp;
+  try {
+    resp = await fetch("/api/analyze", { method: "POST", body: form });
+  } catch {
+    return showError("Could not reach the server. Is it still running?");
+  }
+  const body = await resp.json();
+  if (!resp.ok) return showError(body.detail || "Upload failed.");
+
+  poll(body.job_id);
+}
+
+function poll(jobId) {
+  pollTimer = setInterval(async () => {
+    let resp;
+    try {
+      resp = await fetch(`/api/jobs/${jobId}`);
+    } catch {
+      return showError("Lost connection to the server.");
+    }
+    const job = await resp.json();
+    if (!resp.ok) return showError(job.detail || "Job not found.");
+
+    const stage = document.getElementById("progress-stage");
+    const bar = document.getElementById("bar-fill");
+
+    if (job.status === "queued") {
+      stage.textContent = "Queued…";
+    } else if (job.status === "running") {
+      const { done, total } = job.progress;
+      if (total > 0) {
+        bar.classList.remove("indeterminate");
+        bar.style.width = `${Math.round((done / total) * 100)}%`;
+        stage.textContent = `Clause ${done} of ${total}`;
+      } else {
+        stage.textContent = "Reading document…";
+      }
+    } else if (job.status === "done") {
+      clearInterval(pollTimer);
+      progressPanel.classList.add("hidden");
+      renderResults(job.result);
+    } else if (job.status === "error") {
+      showError(job.error || "Analysis failed.");
+    }
+  }, 1500);
+}
+
+function renderResults(result) {
+  currentVerdicts = result.verdicts;
+  activeFilter = "all";
+
+  const lowCount = result.verdicts.filter(v => v.risk_level === "low").length;
+  const stats = [
+    { num: result.total_clauses, label: "Clauses analyzed", cls: "" },
+    { num: result.high_risk_count, label: "High risk", cls: "high" },
+    { num: result.medium_risk_count, label: "Medium risk", cls: "medium" },
+    { num: lowCount, label: "Low risk", cls: "low" },
+  ];
+  document.getElementById("stats").innerHTML = stats.map(s =>
+    `<div class="stat ${s.cls}"><div class="num">${s.num}</div><div class="label">${s.label}</div></div>`
+  ).join("");
+
+  const filters = [
+    { key: "all", label: "All" },
+    { key: "high", label: "High risk" },
+    { key: "medium", label: "Medium risk" },
+    { key: "low", label: "Low risk" },
+  ];
+  const filtersEl = document.getElementById("filters");
+  filtersEl.innerHTML = filters.map(f =>
+    `<button class="chip ${f.key === "all" ? "active" : ""}" data-key="${f.key}">${f.label}</button>`
+  ).join("");
+  filtersEl.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      activeFilter = chip.dataset.key;
+      filtersEl.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c === chip));
+      renderClauses();
+    });
+  });
+
+  renderClauses();
+
+  if (result.failed_chunk_indices.length) {
+    const note = document.createElement("p");
+    note.className = "progress-note";
+    note.textContent = `${result.failed_chunk_indices.length} clause(s) could not be analyzed reliably and were skipped.`;
+    document.getElementById("clauses").appendChild(note);
+  }
+
+  resultsPanel.classList.remove("hidden");
+}
+
+function esc(s) {
+  const div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function renderClauses() {
+  // High-risk clauses first, then medium, then low; document order within each.
+  const order = { high: 0, medium: 1, low: 2 };
+  const verdicts = currentVerdicts
+    .filter(v => activeFilter === "all" || v.risk_level === activeFilter)
+    .slice()
+    .sort((a, b) => order[a.risk_level] - order[b.risk_level] || a.chunk_index - b.chunk_index);
+
+  document.getElementById("clauses").innerHTML = verdicts.map(v => `
+    <div class="clause ${v.risk_level}">
+      <div class="clause-top">
+        <span class="clause-heading">${esc(v.heading || `Clause ${v.chunk_index + 1}`)}</span>
+        <span class="badge ${v.risk_level}">${v.risk_level} risk</span>
+        <span class="badge type">${esc(v.clause_type.replace(/_/g, " "))}</span>
+      </div>
+      <div class="summary">${esc(v.summary)}</div>
+      ${v.risk_level !== "low" && v.risk_reason ? `
+        <div class="risk-detail">
+          <div class="why">${esc(v.risk_reason)}</div>
+          ${v.quoted_text ? `<blockquote>&ldquo;${esc(v.quoted_text)}&rdquo;</blockquote>` : ""}
+        </div>` : ""}
+    </div>
+  `).join("") || `<p class="progress-note">No clauses match this filter.</p>`;
+}
+</script>
+</body>
+</html>
