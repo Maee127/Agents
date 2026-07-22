@@ -5,6 +5,7 @@ __pycache__/
 
 # Environment
 .env
+.venv/
 
 # Test outputs and sample data (not committed -- too large, may contain real contracts)
 tests/test_run_1/
