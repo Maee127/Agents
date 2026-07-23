@@ -1,4 +1,10 @@
+# Environment files
 .env
-.venv/ 
-catalog-vision-extractor/tests.github/ 
-tests/ 
+.venv/
+
+# Specific test folders
+catalog-vision-extractor/tests.github/
+tests/
+
+# If you want to ignore ALL test directories anywhere:
+# **/tests/
