@@ -18,3 +18,4 @@ data/output/*
 !data/input/.gitkeep
 !data/cache/.gitkeep
 !data/output/.gitkeep
+.env
