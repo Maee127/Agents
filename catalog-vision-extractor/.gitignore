@@ -1,0 +1,4 @@
+.env
+.venv/ 
+catalog-vision-extractor/tests.github/ 
+tests/ 
