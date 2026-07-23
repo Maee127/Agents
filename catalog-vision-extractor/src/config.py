@@ -35,6 +35,9 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "gpt-oss-120b")
+
 RENDER_DPI = int(os.getenv("RENDER_DPI", "175"))
 
 # --- Page classification labels -----------------------------------------
@@ -83,7 +86,12 @@ def validate_config() -> None:
             "VISION_PROVIDER is 'openai' but OPENAI_API_KEY is not set. "
             "Copy .env.example to .env and fill in your key."
         )
-    if VISION_PROVIDER not in ("anthropic", "openai"):
+    if VISION_PROVIDER == "groq" and not GROQ_API_KEY:
+            raise RuntimeError(
+                "VISION_PROVIDER is 'groq' but GROQ_API_KEY is not set. "
+                "Copy .env.example to .env and fill in your key."
+            )
+    if VISION_PROVIDER not in ("anthropic", "openai", "groq"):
         raise RuntimeError(
-            f"Unknown VISION_PROVIDER '{VISION_PROVIDER}'. Use 'anthropic' or 'openai'."
+            f"Unknown VISION_PROVIDER '{VISION_PROVIDER}'. Use 'anthropic' or 'openai' or 'groq'."
         )
