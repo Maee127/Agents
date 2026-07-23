@@ -1,14 +1,24 @@
-name: CI
+name: catalog-vision-extractor CI
 
 on:
   push:
     branches: [main]
+    paths:
+      - "catalog-vision-extractor/**"
+      - ".github/workflows/catalog-vision-extractor-ci.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "catalog-vision-extractor/**"
+      - ".github/workflows/catalog-vision-extractor-ci.yml"
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: catalog-vision-extractor
 
     steps:
       - uses: actions/checkout@v4

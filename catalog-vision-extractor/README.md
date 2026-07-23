@@ -74,9 +74,12 @@ catalog-vision-extractor/
 │   ├── input/            # put brand PDFs here
 │   ├── cache/            # cached per-page classification/extraction results
 │   └── output/           # Master Excel file ends up here
-├── docs/                 # schema reference
-└── .github/workflows/    # CI: run the test suite on every push/PR
+└── docs/                 # schema reference
 ```
+
+CI lives at the repository root (`.github/workflows/catalog-vision-extractor-ci.yml`,
+one level above this folder), because GitHub only discovers workflows there.
+It is path-filtered to run only when files in this project change.
 
 ## Setup
 
