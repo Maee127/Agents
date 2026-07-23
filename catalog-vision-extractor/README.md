@@ -1,155 +1,226 @@
-# Catalog Vision Extractor
+# Applied AI Agents Portfolio
 
-Turn messy, multi-brand commercial-equipment PDF price catalogues into one clean,
-structured Excel database — using a vision LLM instead of brittle text parsing.
+[![Catalog Vision Extractor CI](https://github.com/Maee127/Agents/actions/workflows/catalog-vision-extractor-ci.yml/badge.svg)](https://github.com/Maee127/Agents/actions/workflows/catalog-vision-extractor-ci.yml)
+![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
+![AI Systems](https://img.shields.io/badge/Focus-Applied%20AI%20Systems-6C63FF)
 
-## The problem
+A portfolio of practical AI systems that turn complex, unstructured documents into structured, reviewable outputs.
 
-Commercial equipment distributors get an annual PDF price list from every brand
-they carry. These PDFs are professionally designed catalogues (usually exported
-from Adobe InDesign) that mix:
+The repository contains two independent projects built around real business workflows:
 
-- full-bleed marketing/intro pages
-- multilingual product description pages
-- technical drawing pages with dimensions
-- price table pages — the only pages that actually matter
+- **Catalog Vision Extractor** converts visually inconsistent PDF product catalogues into a normalized master Excel workbook.
+- **Contract Agent** analyzes PDF and text contracts clause by clause with a local language model and presents risk findings through a web application.
 
-Layouts vary wildly between brands, so a traditional PDF text parser (pdfplumber,
-camelot, etc.) breaks constantly: it can't tell a price table from a spec sheet,
-and it can't reliably find which column is "list price" vs "weight" when every
-brand lays the table out differently.
+These projects focus on the engineering required around an AI model—not only the model call itself: ingestion, routing, structured outputs, validation, caching, concurrency, failure isolation, APIs, testing, and human review.
 
-## The approach
+## Projects at a Glance
 
-1. **Rasterize** — render every PDF page to a PNG image.
-2. **Classify** — send each page image to a vision LLM and ask it to label the
-   page as `intro`, `spec`, `drawing`, or `price_table`. Only `price_table`
-   pages move forward.
-3. **Extract** — send each `price_table` page image to the vision LLM again,
-   this time asking for structured JSON: SKU, model name, dimensions, weight,
-   power spec, energy class, list price, etc.
-4. **Normalize** — clean the raw JSON: standardize units, fix multi-line model
-   names, drop duplicate header rows, validate that price fields are numeric.
-5. **Export** — write everything into one Master Excel file with a fixed
-   column schema across all brands.
+| Project | Business problem | AI approach | Interface | Stage |
+| --- | --- | --- | --- | --- |
+| [Catalog Vision Extractor](./catalog-vision-extractor/) | Product and pricing data is trapped in long, visually complex PDF catalogues. | Vision-LLM page classification and structured table extraction, followed by deterministic normalization. | Python CLI and Excel output | Functional, CI-tested portfolio pipeline |
+| [Contract Agent](./contract-agent/) | Important obligations and risks are difficult to identify quickly in long agreements. | Clause-aware chunking and structured local-LLM analysis with source-quote verification. | FastAPI API and browser UI | Local MVP / experimental build |
 
-## Reliability design
+## 1. Catalog Vision Extractor
 
-- **Idempotent per page.** Each page image is hashed and results are cached
-  against that hash *plus* a hash of the prompt and model that produced them.
-  Re-running on an updated PDF only reprocesses pages that changed; changing
-  a prompt or model automatically invalidates the affected cache entries.
-- **Failures are isolated per page.** Transient API errors are retried with
-  exponential backoff; a page that still fails is reported in the run summary
-  instead of crashing a 100-page run. Re-running the same command retries only
-  the failed pages (everything else is served from cache).
-- **Truncation is detected, not ignored.** If the model runs out of output
-  tokens mid-table, the page is marked failed rather than silently losing the
-  bottom rows.
-- **Model output is validated** with pydantic (`src/schemas.py`) at the two
-  points where unvalidated JSON enters the pipeline: page classifications and
-  raw product rows.
-- **Low-confidence classifications are flagged** in the summary for manual
-  review, so a misclassified price page doesn't vanish silently.
-- **Atomic Excel writes.** The master workbook is replaced in one filesystem
-  operation, so a crash mid-write can't corrupt accumulated data.
+Commercial catalogues often combine cover pages, product descriptions, technical drawings, specifications, and price tables. Their layouts differ across brands, making fixed-coordinate or text-only extraction fragile.
 
-## Project structure
+This project renders each PDF page as an image, identifies the pages that contain price tables, extracts every visible product row into validated JSON, normalizes the results, and merges them into a consistent Excel dataset.
 
-```
-catalog-vision-extractor/
-├── src/
-│   ├── config.py         # provider/model selection, paths, master schema
-│   ├── schemas.py        # pydantic validation of model responses
-│   ├── vision_client.py  # provider abstraction + retry/truncation handling
-│   ├── rasterizer.py     # PDF -> page images (PyMuPDF)
-│   ├── classifier.py     # page image -> page type
-│   ├── extractor.py      # price_table image -> structured JSON
-│   ├── normalizer.py     # raw JSON -> clean rows
-│   ├── exporter.py       # clean rows -> Master Excel
-│   ├── cache.py          # (page hash, prompt+model) -> cached result
-│   └── pipeline.py       # ties it all together + CLI
-├── tests/                # unit tests — no API key needed
-├── data/
-│   ├── input/            # put brand PDFs here
-│   ├── cache/            # cached per-page classification/extraction results
-│   └── output/           # Master Excel file ends up here
-└── docs/                 # schema reference
+```mermaid
+flowchart LR
+    A["PDF catalogue"] --> B["Page images"]
+    B --> C{"Vision classification"}
+    C -->|Price table| D["Structured extraction"]
+    C -->|Other page| E["Skip"]
+    D --> F["Validate and normalize"]
+    F --> G["Master Excel workbook"]
 ```
 
-CI lives at the repository root (`.github/workflows/catalog-vision-extractor-ci.yml`,
-one level above this folder), because GitHub only discovers workflows there.
-It is path-filtered to run only when files in this project change.
+### Engineering highlights
 
-## Setup
+- Page-level processing with PyMuPDF
+- Anthropic and OpenAI vision-provider abstraction
+- Concurrent classification and extraction
+- Pydantic validation at model-output boundaries
+- Cache keys based on page content, prompt, and model
+- Automatic cache invalidation after prompt or model changes
+- Exponential retry handling for transient API failures
+- Explicit detection of truncated model responses
+- Per-page failure isolation and low-confidence review flags
+- Deterministic normalization and duplicate-row handling
+- Idempotent replacement by brand and price-list version
+- Atomic Excel writes to protect the master workbook
+- GitHub Actions CI and an API-free unit test suite
+
+### Run it
 
 ```bash
+cd catalog-vision-extractor
+
 python -m venv .venv
-source .venv/bin/activate         # Windows: .venv\Scripts\activate
+source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+
 pip install -r requirements.txt
-cp .env.example .env              # then fill in your API key
+cp .env.example .env
 ```
 
-> PyMuPDF installs as `pymupdf` and is imported as `pymupdf`. Never
-> `pip install fitz` — that's an unrelated package that shadows PyMuPDF's
-> legacy import name and breaks the rasterizer.
-
-You need an API key from **one** of:
-- Anthropic (`ANTHROPIC_API_KEY`) — recommended, cheapest is `claude-haiku-4-5`
-- OpenAI (`OPENAI_API_KEY`) — `gpt-4o-mini` is the cheap vision option
-
-Both providers bill per token — there is no free production tier — but a
-single brand's price-table pages (typically 10-30 pages) costs a few cents
-to process even with caching disabled.
-
-## Usage
+Add an Anthropic or OpenAI API key to `.env`, then process one catalogue:
 
 ```bash
-# Run the full pipeline on one brand PDF
-python -m src.pipeline --pdf data/input/acme_2026.pdf --brand ACME --version 2026
-
-# Re-run after the brand sends an updated catalogue — only changed
-# pages get reprocessed, thanks to the page-hash cache
-python -m src.pipeline --pdf data/input/acme_2026_v2.pdf --brand ACME --version 2026
-
-# Process every PDF in data/input/ in one go (brand guessed from filename)
-python -m src.pipeline --all
-
-# Force a clean re-extraction, ignoring the cache
-python -m src.pipeline --pdf data/input/acme_2026.pdf --brand ACME --no-cache
+python -m src.pipeline \
+  --pdf data/input/acme_2026.pdf \
+  --brand ACME \
+  --version 2026
 ```
 
-Output lands in `data/output/master_pricelist.xlsx`. Running the pipeline again
-on a different brand appends to the same master file; re-running the same
-brand+version **replaces** that brand's rows rather than duplicating them.
-
-## Tests
-
-The test suite covers the pure logic (normalizer, exporter, response parsing,
-schemas) with fixture data — no API calls, no PDFs, no key required:
+Or process every PDF in the input directory:
 
 ```bash
-pytest -q
+python -m src.pipeline --all --version 2026
 ```
 
-## Master Excel schema
+The pipeline writes the consolidated workbook to:
 
-See [`docs/schema.md`](docs/schema.md) for the full column reference.
+```text
+catalog-vision-extractor/data/output/master_pricelist.xlsx
+```
 
-## Known limitations (and why they're there)
+For configuration, cache behavior, limitations, and detailed usage, see the [Catalog Vision Extractor README](./catalog-vision-extractor/README.md). The workbook fields are documented in the [schema reference](./catalog-vision-extractor/docs/schema.md).
 
-This is a portfolio-scale build, so a few things are deliberately out of scope:
+## 2. Contract Agent
 
-- **Multilingual spec pages are classified and skipped, not translated.** The
-  full job spec asks for 4-language support; this POC proves the
-  classification/extraction mechanism on the language that matters most
-  (the price table itself, which is usually numbers + a SKU code, not prose).
-- **No OCR fallback.** If a PDF page is a scanned image with no embedded text
-  layer, the vision model still works (it reads pixels either way) but
-  extraction accuracy may dip on low-resolution scans.
-- **Single quotation currency per brand.** Multi-currency catalogues would need
-  a currency-detection step per row.
+Contract Agent is a local-first MVP for clause-level contract review. It extracts text from PDF or TXT files, identifies clause boundaries, sends each clause to a locally stored Qwen2.5-7B model, validates the returned JSON, and displays the results in a lightweight browser interface.
 
-## License
+```mermaid
+flowchart LR
+    A["PDF or TXT"] --> B["Text ingestion"]
+    B --> C["Clause-aware chunking"]
+    C --> D["Local LLM analysis"]
+    D --> E["Schema and quote checks"]
+    E --> F["FastAPI job API"]
+    F --> G["Browser results"]
+```
 
-MIT
+### Engineering highlights
+
+- PDF and TXT ingestion with scanned-document detection
+- Structural clause splitting with a sentence-boundary fallback
+- Local Qwen2.5-7B inference through Transformers
+- Structured verdicts with clause type, summary, and risk level
+- Source-quote verification to reject unsupported risk evidence
+- Per-clause failure isolation
+- Progress callbacks across the analysis pipeline
+- In-memory job queue with single-worker model processing
+- File-type, empty-file, and 20 MB upload validation
+- Responsive browser UI with progress and risk filters
+- Unit and integration test organization
+
+### Run it
+
+The project targets Python 3.13 and expects a local Qwen2.5-7B-compatible model directory.
+
+```bash
+cd contract-agent
+
+python -m venv .venv
+source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+
+pip install -r requirements.txt
+```
+
+Place the model in `contract-agent/qwen2.5-7b/`, or set its location:
+
+```bash
+export LOCAL_MODEL_PATH=/absolute/path/to/qwen2.5-7b
+```
+
+Start the application:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). Interactive API documentation is available at `/docs`.
+
+For implementation notes and project-specific limitations, see the [Contract Agent README](./contract-agent/README.md).
+
+> Contract Agent is a decision-support prototype, not legal advice. Its output must be reviewed by a qualified professional before any legal or business decision.
+
+## Repository Structure
+
+```text
+Agents/
+├── .github/
+│   └── workflows/
+│       └── catalog-vision-extractor-ci.yml
+├── catalog-vision-extractor/
+│   ├── data/
+│   │   ├── cache/
+│   │   ├── input/
+│   │   └── output/
+│   ├── docs/
+│   │   └── schema.md
+│   ├── src/
+│   │   ├── cache.py
+│   │   ├── classifier.py
+│   │   ├── config.py
+│   │   ├── exporter.py
+│   │   ├── extractor.py
+│   │   ├── normalizer.py
+│   │   ├── pipeline.py
+│   │   ├── rasterizer.py
+│   │   ├── schemas.py
+│   │   └── vision_client.py
+│   ├── tests/
+│   ├── .env.example
+│   ├── README.md
+│   └── requirements.txt
+├── contract-agent/
+│   ├── app/
+│   │   ├── static/
+│   │   │   └── index.html
+│   │   └── main.py
+│   ├── src/
+│   │   ├── analyzer.py
+│   │   ├── chunking.py
+│   │   ├── ingestion.py
+│   │   ├── local_llm.py
+│   │   └── pipeline.py
+│   ├── tests/
+│   │   ├── fixtures/
+│   │   ├── integration/
+│   │   └── unit/
+│   ├── README.md
+│   ├── pytest.ini
+│   └── requirements.txt
+└── README.md
+```
+
+Each project is self-contained. Install and run it from its own directory using its own dependency file.
+
+## Technical Themes
+
+| Area | Patterns demonstrated |
+| --- | --- |
+| AI orchestration | Multi-stage pipelines, model routing, prompt-specific processing |
+| Trust and reliability | Schema validation, source grounding, low-confidence flags, failure isolation |
+| Data engineering | Normalization, deduplication, idempotent updates, structured export |
+| Performance | Concurrent page processing, caching, local-model reuse |
+| Application delivery | CLI workflows, REST endpoints, background jobs, browser UI |
+| Quality | Unit tests, integration tests, CI, environment-based configuration |
+
+## Current Scope
+
+This is a portfolio repository, not a hosted multi-tenant service.
+
+- The catalogue extractor requires a supported vision API and should be evaluated against representative catalogues before production use.
+- The contract agent requires a local model, keeps jobs in memory, and processes them sequentially in a single application process.
+- Authentication, persistent job storage, observability, deployment infrastructure, and production security controls are outside the current scope.
+
+## Responsible Use
+
+AI-generated extraction and analysis can be incomplete or incorrect. Treat all outputs as reviewable decision-support data and verify important results against the source document.
+
+Never commit API keys, model files, private contracts, customer catalogues, generated caches, or exported business data to the repository.
