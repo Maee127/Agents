@@ -1,8 +1,13 @@
-PyMuPDF==1.24.10
-anthropic==0.39.0
-openai==1.54.0
-pandas==2.2.3
-openpyxl==3.1.5
-python-dotenv==1.0.1
-pydantic==2.9.2
-tqdm==4.66.5
+# Install as "pymupdf", import as "pymupdf". Never `pip install fitz` —
+# that is an unrelated package that shadows PyMuPDF's legacy import name.
+PyMuPDF>=1.24
+
+anthropic>=0.39
+openai>=1.54
+pandas>=2.2
+openpyxl>=3.1
+python-dotenv>=1.0
+pydantic>=2.9
+
+# Testing
+pytest>=8.0

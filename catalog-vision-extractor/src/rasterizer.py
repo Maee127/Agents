@@ -1,18 +1,17 @@
 """
 Stage 1: PDF -> page images.
 
-Uses PyMuPDF (fitz) rather than pdf2image/poppler so there's no external
-binary dependency — just a pip install. Each page is rendered to a PNG at a
-configurable DPI and returned alongside its page number and a content hash
-(used downstream for caching).
+Uses PyMuPDF (imported as `pymupdf` — never `fitz`, which collides with an
+unrelated PyPI package of the same name) rather than pdf2image/poppler so
+there's no external binary dependency — just a pip install. Each page is
+rendered to a PNG at a configurable DPI and returned alongside its page
+number and a content hash (used downstream for caching).
 """
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-
-import fitz  # PyMuPDF
 
 from src.config import RENDER_DPI
 
@@ -37,14 +36,18 @@ def rasterize_pdf(pdf_path: Path, dpi: int = RENDER_DPI) -> list[RenderedPage]:
     Returns:
         One RenderedPage per page, in document order.
     """
+    # Imported here rather than at module level so the rest of the pipeline
+    # (and the test suite) can be imported without the PyMuPDF binary wheel.
+    import pymupdf
+
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
     zoom = dpi / 72  # PDF base unit is 72 dpi
-    matrix = fitz.Matrix(zoom, zoom)
+    matrix = pymupdf.Matrix(zoom, zoom)
 
     pages: list[RenderedPage] = []
-    with fitz.open(pdf_path) as doc:
+    with pymupdf.open(pdf_path) as doc:
         for index, page in enumerate(doc):
             pix = page.get_pixmap(matrix=matrix)
             image_bytes = pix.tobytes("png")

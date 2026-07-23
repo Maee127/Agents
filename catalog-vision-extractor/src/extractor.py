@@ -9,14 +9,24 @@ model has full table context to disambiguate columns).
 The schema requested here intentionally mirrors the raw catalogue fields,
 not the final Master Excel columns — normalizer.py does that translation,
 so this prompt can stay stable even if the master schema changes later.
+
+Each parsed row is validated against schemas.RawProductRow; structurally
+invalid rows are dropped (with a warning) instead of poisoning the run.
+A page whose extraction fails entirely (after retries) is reported as a
+failed page rather than crashing the pipeline.
 """
 from __future__ import annotations
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.cache import get_cached, set_cached
+from pydantic import ValidationError
+
+from src.cache import context_hash, get_cached, set_cached
+from src.config import MAX_TOKENS_EXTRACT, MAX_WORKERS, active_model
 from src.rasterizer import RenderedPage
+from src.schemas import RawProductRow
 from src.vision_client import call_vision
 
 CACHE_STAGE = "extract"
@@ -67,8 +77,16 @@ Example response format:
 """
 
 
+def _cache_ctx() -> str:
+    return context_hash(EXTRACTION_PROMPT, active_model())
+
+
 def _parse_extraction(raw_response: str) -> list[dict]:
-    """Extract the JSON array from the model's response, tolerating stray text/fences."""
+    """
+    Extract the JSON array from the model's response (tolerating stray
+    text/fences) and validate each row's structure. Invalid rows are
+    dropped with a warning rather than failing the whole page.
+    """
     cleaned = raw_response.strip()
     # Strip markdown code fences if the model added them despite instructions
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.MULTILINE)
@@ -77,9 +95,19 @@ def _parse_extraction(raw_response: str) -> list[dict]:
     if not match:
         raise ValueError(f"Could not find a JSON array in extractor response: {raw_response!r}")
 
-    rows = json.loads(match.group(0))
-    if not isinstance(rows, list):
+    items = json.loads(match.group(0))
+    if not isinstance(items, list):
         raise ValueError("Extractor response JSON was not a list")
+
+    rows: list[dict] = []
+    invalid = 0
+    for item in items:
+        try:
+            rows.append(RawProductRow.model_validate(item).model_dump())
+        except ValidationError:
+            invalid += 1
+    if invalid:
+        print(f"[extractor] dropped {invalid} structurally invalid row(s)")
     return rows
 
 
@@ -90,26 +118,50 @@ def extract_page(page: RenderedPage, use_cache: bool = True) -> list[dict]:
     Returns a list of raw row dicts (schema described in EXTRACTION_PROMPT),
     each tagged with the source page number for traceability.
     """
+    ctx = _cache_ctx()
     if use_cache:
-        cached = get_cached(CACHE_STAGE, page.page_hash)
+        cached = get_cached(CACHE_STAGE, page.page_hash, ctx)
         if cached is not None:
             return cached
 
-    raw_response = call_vision(EXTRACTION_PROMPT, page.image_bytes)
+    raw_response = call_vision(EXTRACTION_PROMPT, page.image_bytes, MAX_TOKENS_EXTRACT)
     rows = _parse_extraction(raw_response)
 
     for row in rows:
         row["source_page"] = page.page_number
 
     if use_cache:
-        set_cached(CACHE_STAGE, page.page_hash, rows)
+        set_cached(CACHE_STAGE, page.page_hash, ctx, rows)
 
     return rows
 
 
-def extract_pages(pages: list[RenderedPage], use_cache: bool = True) -> list[dict]:
-    """Extract rows from a list of price_table pages, flattening into one list."""
+def extract_pages(
+    pages: list[RenderedPage], use_cache: bool = True
+) -> tuple[list[dict], list[int]]:
+    """
+    Extract rows from price_table pages concurrently.
+
+    Returns (rows, failed_page_numbers). Rows are ordered by source page so
+    the Excel output is deterministic. A page that fails after retries lands
+    in failed_page_numbers instead of aborting the run.
+    """
+    rows_by_page: dict[int, list[dict]] = {}
+    failed_pages: list[int] = []
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        futures = {
+            pool.submit(extract_page, page, use_cache): page for page in pages
+        }
+        for future in as_completed(futures):
+            page = futures[future]
+            try:
+                rows_by_page[page.page_number] = future.result()
+            except Exception as exc:  # noqa: BLE001 — isolate per-page failures
+                print(f"[extractor] page {page.page_number} failed: {exc}")
+                failed_pages.append(page.page_number)
+
     all_rows: list[dict] = []
-    for page in pages:
-        all_rows.extend(extract_page(page, use_cache=use_cache))
-    return all_rows
+    for page_number in sorted(rows_by_page):
+        all_rows.extend(rows_by_page[page_number])
+    return all_rows, sorted(failed_pages)

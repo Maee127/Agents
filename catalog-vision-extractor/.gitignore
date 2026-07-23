@@ -1,10 +1,19 @@
-# Environment files
+# Secrets
 .env
+
+# Virtual environments
+venv/
 .venv/
 
-# Specific test folders
-catalog-vision-extractor/tests.github/
-tests/
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
-# If you want to ignore ALL test directories anywhere:
-# **/tests/
+# Pipeline data: inputs are proprietary catalogues, cache/output are derived
+data/input/*
+data/cache/*
+data/output/*
+!data/input/.gitkeep
+!data/cache/.gitkeep
+!data/output/.gitkeep

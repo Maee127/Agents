@@ -6,9 +6,14 @@ replacing any existing rows for that brand+version so re-running a brand
 doesn't create duplicates. Formatting (column widths, header styling, frozen
 header row) is applied once per write so the file stays readable as it grows
 to dozens of brands.
+
+The write is atomic: everything goes to a temp file first, which then
+replaces the master file in one step. A crash mid-write can no longer
+corrupt the accumulated master data.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -48,6 +53,16 @@ def _style_workbook(path: Path) -> None:
     wb.save(path)
 
 
+def _as_text(series: pd.Series) -> pd.Series:
+    """
+    Normalize a column for identity comparison. Empty cells round-trip
+    through Excel as NaN, so NaN and "" must compare as equal — otherwise
+    re-running a brand with the default (empty) version label would fail to
+    replace its old rows and silently duplicate them.
+    """
+    return series.fillna("").astype(str)
+
+
 def write_master_excel(
     new_rows: list[dict],
     brand: str,
@@ -65,8 +80,8 @@ def write_master_excel(
 
     if not existing.empty:
         is_same_brand_version = (
-            (existing["Brand"] == brand)
-            & (existing["Price List Version"] == price_list_version)
+            (_as_text(existing["Brand"]) == str(brand))
+            & (_as_text(existing["Price List Version"]) == str(price_list_version))
         )
         existing = existing[~is_same_brand_version]
 
@@ -75,12 +90,20 @@ def write_master_excel(
     if existing.empty:
         combined = new_df
     else:
-        combined = pd.concat([existing.astype(object), new_df.astype(object)], ignore_index=True)
+        combined = pd.concat(
+            [existing.astype(object), new_df.astype(object)], ignore_index=True
+        )
     combined = combined[MASTER_COLUMNS]  # enforce column order
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    with pd.ExcelWriter(path, engine="openpyxl") as writer:
-        combined.to_excel(writer, sheet_name="Master", index=False)
+    tmp_path = path.with_name(f".{path.stem}.tmp{path.suffix}")
+    try:
+        with pd.ExcelWriter(tmp_path, engine="openpyxl") as writer:
+            combined.to_excel(writer, sheet_name="Master", index=False)
+        _style_workbook(tmp_path)
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
-    _style_workbook(path)
     return path

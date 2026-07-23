@@ -1,8 +1,8 @@
 # Master Excel schema reference
 
 Every brand's extracted data lands in the same `Master` sheet using this exact
-column order. `normalizer.py`'s `MASTER_COLUMNS` (in `src/config.py`) is the
-single source of truth — this doc is just a human-readable mirror of it.
+column order. `MASTER_COLUMNS` in `src/config.py` is the single source of
+truth — this doc is just a human-readable mirror of it.
 
 | Column | Type | Notes |
 |---|---|---|

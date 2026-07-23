@@ -16,7 +16,14 @@ from pathlib import Path
 
 from src.cache import cache_stats
 from src.classifier import classify_pages
-from src.config import INPUT_DIR, MASTER_EXCEL_PATH, TARGET_PAGE_TYPE, validate_config
+from src.config import (
+    CONFIDENCE_REVIEW_THRESHOLD,
+    ERROR_PAGE_TYPE,
+    INPUT_DIR,
+    MASTER_EXCEL_PATH,
+    TARGET_PAGE_TYPE,
+    validate_config,
+)
 from src.exporter import write_master_excel
 from src.extractor import extract_pages
 from src.normalizer import normalize_rows
@@ -47,6 +54,27 @@ def run_pipeline(
         type_counts[c["page_type"]] = type_counts.get(c["page_type"], 0) + 1
     print(f"      breakdown: {type_counts}")
 
+    # Pages the pipeline couldn't classify, and pages the model wasn't sure
+    # about, are surfaced instead of vanishing silently — a misclassified
+    # price page means missing rows in the master file.
+    error_pages = sorted(
+        c["page_number"] for c in classifications if c["page_type"] == ERROR_PAGE_TYPE
+    )
+    review_pages = sorted(
+        c["page_number"]
+        for c in classifications
+        if c["page_type"] != ERROR_PAGE_TYPE
+        and c["confidence"] < CONFIDENCE_REVIEW_THRESHOLD
+    )
+    if error_pages:
+        print(f"      WARNING: classification failed for page(s): {error_pages}")
+    if review_pages:
+        print(
+            f"      NOTE: low-confidence classification "
+            f"(<{CONFIDENCE_REVIEW_THRESHOLD}) on page(s): {review_pages} "
+            f"— worth a manual look"
+        )
+
     target_page_numbers = {
         c["page_number"] for c in classifications if c["page_type"] == TARGET_PAGE_TYPE
     }
@@ -54,8 +82,10 @@ def run_pipeline(
     print(f"      {len(target_pages)} page(s) classified as '{TARGET_PAGE_TYPE}' -> extracting")
 
     print("[3/5] extracting structured data from price table pages...")
-    raw_rows = extract_pages(target_pages, use_cache=use_cache)
+    raw_rows, failed_pages = extract_pages(target_pages, use_cache=use_cache)
     print(f"      {len(raw_rows)} raw row(s) extracted")
+    if failed_pages:
+        print(f"      WARNING: extraction failed for page(s): {failed_pages}")
 
     print("[4/5] normalizing...")
     clean_rows = normalize_rows(
@@ -74,6 +104,8 @@ def run_pipeline(
         "brand": brand,
         "pages_total": len(pages),
         "pages_extracted": len(target_pages),
+        "pages_failed": error_pages + failed_pages,
+        "pages_low_confidence": review_pages,
         "rows_raw": len(raw_rows),
         "rows_clean": len(clean_rows),
         "elapsed_seconds": round(elapsed, 1),
@@ -124,6 +156,14 @@ def main() -> None:
     print(f"\nclassification cache: {cache_stats('classify')}")
     print(f"extraction cache:     {cache_stats('extract')}")
     print(f"\nmaster file: {MASTER_EXCEL_PATH}")
+
+    if any(s["pages_failed"] for s in summaries):
+        print(
+            "\nWARNING: some pages failed — the master file may be missing rows. "
+            "Re-run the same command to retry just the failed pages (successful "
+            "pages are cached)."
+        )
+        sys.exit(2)
 
 
 if __name__ == "__main__":
