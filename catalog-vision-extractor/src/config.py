@@ -10,7 +10,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
+load_dotenv(os.path.expanduser("c:/Users/parsayan/VScodes/ML-Portfolio/Secret-Files.env"))
+
 
 # --- Paths -------------------------------------------------------------
 
