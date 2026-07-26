@@ -36,6 +36,25 @@ Append-only log of notable technical decisions. Newest entries last.
   deployment requirements (the specification also lists Pinecone and Weaviate
   as options).
 
+## 2026-07-26: Milestone 1 — domain models
+
+- **Domain models are frozen stdlib dataclasses, not Pydantic.** The domain
+  layer must stay free of framework code, and Pydantic would make its
+  `ValidationError` part of the domain contract. Invariants are enforced in
+  `__post_init__` and raise domain-owned exceptions. No new dependencies.
+- **Strict runtime validation without coercion.** Enum fields require real
+  enum members (raw strings rejected); durations must be finite, non-negative
+  real numbers (booleans rejected); timestamps must be timezone-aware with an
+  effective UTC offset; string identifiers are preserved verbatim, never
+  stripped or normalized.
+- **`CallProcessingStatus` models business-stage completion only.** It records
+  which pipeline stage a call has completed (received, validated, transcribed,
+  diarized, roles_assigned, evaluated, plus terminal rejected/failed states).
+  It is not the worker/orchestration lifecycle: operational states and retry
+  states may be modeled separately when queue-based processing is implemented.
+- **Exception messages are log-safe.** They contain field names and status
+  names only — never PII values or call identifiers.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata
