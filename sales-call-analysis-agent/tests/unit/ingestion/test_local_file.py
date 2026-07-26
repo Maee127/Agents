@@ -28,7 +28,11 @@ SELLER_NUMBER = "+15550000001"
 
 def _properties(channel_count: int = 1) -> AudioProperties:
     return AudioProperties(
-        duration_seconds=3.5, format_name="mp3", sample_rate_hz=8000, channel_count=channel_count
+        duration_seconds=3.5,
+        format_name="mp3",
+        codec_name="mp3",
+        sample_rate_hz=8000,
+        channel_count=channel_count,
     )
 
 
@@ -114,11 +118,19 @@ def test_unsupported_extension_raises(tmp_path: Path) -> None:
         ingest_local_file(path, seller_number=SELLER_NUMBER, source_type=SourceType.RECORDER_APP)
 
 
+@pytest.mark.parametrize(
+    "probe_message",
+    [
+        "ffprobe could not read the file as audio media",
+        "no audio stream was found in the file",
+        "required audio fields are missing or invalid",
+    ],
+)
 def test_invalid_media_maps_to_corrupt_error(
-    monkeypatch: pytest.MonkeyPatch, audio_file: Path
+    monkeypatch: pytest.MonkeyPatch, audio_file: Path, probe_message: str
 ) -> None:
     def failing_probe(path: Path, *, executable: str = "ffprobe") -> AudioProperties:
-        raise InvalidAudioMediaError("ffprobe could not read the file as audio media")
+        raise InvalidAudioMediaError(probe_message)
 
     monkeypatch.setattr(_PROBE_TARGET, failing_probe)
 

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sales_call_agent.audio import AudioProperties, InvalidAudioMediaError, probe_audio
+from sales_call_agent.audio.probe import AudioProperties, InvalidAudioMediaError, probe_audio
 from sales_call_agent.domain import AudioAsset, AudioChannels, CallMetadata, SourceType
 from sales_call_agent.ingestion.exceptions import (
     CorruptAudioFileError,

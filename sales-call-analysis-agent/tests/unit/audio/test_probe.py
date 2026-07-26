@@ -27,7 +27,14 @@ def _completed(returncode: int = 0, stdout: str = "") -> subprocess.CompletedPro
 def _valid_payload() -> dict[str, Any]:
     return {
         "format": {"duration": "3.480000", "format_name": "mp3"},
-        "streams": [{"codec_type": "audio", "sample_rate": "8000", "channels": 1}],
+        "streams": [
+            {
+                "codec_type": "audio",
+                "codec_name": "mp3",
+                "sample_rate": "8000",
+                "channels": 1,
+            }
+        ],
     }
 
 
@@ -55,7 +62,11 @@ def test_parses_valid_ffprobe_output(monkeypatch: pytest.MonkeyPatch) -> None:
     properties = probe_audio(Path("synthetic.mp3"))
 
     assert properties == AudioProperties(
-        duration_seconds=3.48, format_name="mp3", sample_rate_hz=8000, channel_count=1
+        duration_seconds=3.48,
+        format_name="mp3",
+        codec_name="mp3",
+        sample_rate_hz=8000,
+        channel_count=1,
     )
 
 
@@ -157,6 +168,7 @@ def test_error_messages_contain_no_path_or_command(monkeypatch: pytest.MonkeyPat
         {"duration_seconds": -1.0},
         {"duration_seconds": float("nan")},
         {"format_name": "   "},
+        {"codec_name": "   "},
         {"sample_rate_hz": 0},
         {"channel_count": 0},
     ],
@@ -165,6 +177,7 @@ def test_audio_properties_reject_invalid_values(overrides: dict[str, Any]) -> No
     values: dict[str, Any] = {
         "duration_seconds": 3.48,
         "format_name": "mp3",
+        "codec_name": "mp3",
         "sample_rate_hz": 8000,
         "channel_count": 1,
     }

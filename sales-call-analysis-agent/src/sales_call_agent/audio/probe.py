@@ -52,6 +52,7 @@ class AudioProperties:
 
     duration_seconds: float
     format_name: str
+    codec_name: str
     sample_rate_hz: int
     channel_count: int
 
@@ -60,6 +61,8 @@ class AudioProperties:
             raise InvalidAudioMediaError("duration_seconds must be a finite, non-negative number")
         if not self.format_name.strip():
             raise InvalidAudioMediaError("format_name must not be empty")
+        if not self.codec_name.strip():
+            raise InvalidAudioMediaError("codec_name must not be empty")
         if self.sample_rate_hz <= 0:
             raise InvalidAudioMediaError("sample_rate_hz must be positive")
         if self.channel_count <= 0:
@@ -131,6 +134,7 @@ def _parse_probe_payload(payload: object) -> AudioProperties:
         return AudioProperties(
             duration_seconds=float(file_format["duration"]),
             format_name=str(file_format["format_name"]),
+            codec_name=str(stream["codec_name"]),
             sample_rate_hz=int(stream["sample_rate"]),
             channel_count=int(stream["channels"]),
         )

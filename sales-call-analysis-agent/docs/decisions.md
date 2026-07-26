@@ -88,6 +88,21 @@ Append-only log of notable technical decisions. Newest entries last.
   the same absolute path is used for validation, hashing, probing, and the
   temporary local `storage_path`.
 
+## 2026-07-26: Canonical normalization publication safety
+
+- **Normalization publishes atomically via temp files.** FFmpeg writes to a
+  PII-safe temporary file in the destination directory; the temp artifact is
+  verified with ffprobe against canonical ASR constraints (WAV, `pcm_s16le`,
+  mono, 16 kHz, finite positive duration), hashed, then atomically replaced
+  into the deterministic final target.
+- **Final artifact naming uses full source SHA-256.** The normalized filename
+  is `<full-source-sha256>.asr.wav`, avoiding source filenames/phone numbers
+  while remaining deterministic and idempotent.
+- **Invalid existing targets are never pre-deleted.** If an existing final
+  artifact is invalid, it remains untouched until a fresh replacement is
+  successfully generated and verified; regeneration failures leave the prior
+  target in place.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata
