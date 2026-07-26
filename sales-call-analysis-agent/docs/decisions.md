@@ -103,6 +103,20 @@ Append-only log of notable technical decisions. Newest entries last.
   successfully generated and verified; regeneration failures leave the prior
   target in place.
 
+## 2026-07-26: Transcription boundary contract
+
+- **Provider-independent transcription models and protocol.** The boundary
+  accepts a normalized-audio request contract and returns validated transcript
+  models only; provider SDK response objects never escape adapters.
+- **Confidence is not forced into a universal score.** Language confidence is
+  represented separately from provider-native confidence metrics; metric scales
+  are a closed enum (`ZERO_TO_ONE`, `PERCENTAGE`, `LOG_PROBABILITY`,
+  `UNSPECIFIED`) to avoid ambiguous free-form strings.
+- **No-speech is a valid success shape.** `full_text == ""` and `segments == ()`
+  are accepted only when `NO_SPEECH_DETECTED` is explicitly set.
+- **Warnings are sanitized to application-controlled codes.** Raw provider
+  warning messages are not exposed; warning codes must be safe identifiers.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata
