@@ -7,7 +7,7 @@ alwaysApply: false
 # Testing Conventions
 
 - `tests/unit/` holds fast, hermetic tests: no network, no database, no real
-  files outside `tests/fixtures/`.
+  files outside `tests/fixtures/` or pytest-managed `tmp_path` directories.
 - `tests/integration/` holds tests that need external services (e.g. the
   docker-compose PostgreSQL). They must be skippable when the service is absent.
 - Shared fixtures live in `tests/conftest.py`; static test data in

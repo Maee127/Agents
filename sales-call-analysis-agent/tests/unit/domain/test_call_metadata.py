@@ -132,6 +132,7 @@ def test_is_immutable(metadata_kwargs: dict[str, Any]) -> None:
 
 
 def test_repr_and_str_hide_pii(metadata_kwargs: dict[str, Any]) -> None:
+    metadata_kwargs["storage_path"] = "calls/seller-0001/2026-07-26/+15550000002_rec.mp3"
     metadata = CallMetadata(**metadata_kwargs)
 
     for rendered in (repr(metadata), str(metadata)):
@@ -139,6 +140,8 @@ def test_repr_and_str_hide_pii(metadata_kwargs: dict[str, Any]) -> None:
         assert metadata_kwargs["seller_number"] not in rendered
         assert metadata_kwargs["counterparty_phone"] not in rendered
         assert metadata_kwargs["original_filename"] not in rendered
+        assert metadata_kwargs["storage_path"] not in rendered
+        assert "+15550000002" not in rendered
 
 
 def test_exception_messages_do_not_leak_field_values(metadata_kwargs: dict[str, Any]) -> None:

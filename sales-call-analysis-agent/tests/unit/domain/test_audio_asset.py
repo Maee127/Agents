@@ -38,3 +38,13 @@ def test_is_immutable(audio_kwargs: dict[str, Any]) -> None:
 
     with pytest.raises(AttributeError):
         asset.content_hash = "tampered"  # type: ignore[misc]
+
+
+def test_repr_and_str_hide_storage_path(audio_kwargs: dict[str, Any]) -> None:
+    audio_kwargs["storage_path"] = "calls/seller-0001/2026-07-26/+15550000002_rec.mp3"
+    asset = AudioAsset(**audio_kwargs)
+
+    for rendered in (repr(asset), str(asset)):
+        assert audio_kwargs["storage_path"] not in rendered
+        assert "+15550000002" not in rendered
+        assert audio_kwargs["content_hash"] in rendered

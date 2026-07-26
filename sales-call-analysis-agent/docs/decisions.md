@@ -55,6 +55,39 @@ Append-only log of notable technical decisions. Newest entries last.
 - **Exception messages are log-safe.** They contain field names and status
   names only — never PII values or call identifiers.
 
+## 2026-07-26: Local-file ingestion slice
+
+- **ffprobe via a subprocess adapter (`audio/probe.py`).** No Python
+  dependencies added; ffprobe must be on PATH (or passed explicitly). Probe
+  failures surface as typed domain errors, and error messages never include
+  file paths, because filenames can embed phone numbers (PII).
+- **`call_id` derived from content.** `call-` plus the first 16 hex characters
+  of the file's SHA-256, matching the specification's "generated or derived
+  hash" and giving stable identifiers for hash-based duplicate detection.
+- **Supported extensions: `.3gp`, `.amr`, `.mp3`, `.wav`.** The first three
+  come from the specification's source descriptions; `.wav` is accepted for
+  synthetic test audio and future normalized output.
+- **Default `call_timestamp` is the file's modification time (UTC)** when the
+  caller does not supply one; source-specific parsers will extract real call
+  start times later.
+- **The ingestion API takes `seller_number`,** matching the canonical
+  metadata schema; the `seller_id` question remains open (see below).
+
+## 2026-07-26: Probe error boundary refinement
+
+- **Two operational probe error categories.** `AudioProbeUnavailableError`
+  (missing ffprobe executable, timeout, output violating the tool contract —
+  the file may be fine) vs `InvalidAudioMediaError` (unreadable media, no
+  audio stream, missing or invalid media fields). Ingestion maps only
+  `InvalidAudioMediaError` to `CorruptAudioFileError`; environment failures
+  propagate unchanged so a misconfigured host cannot mass-mislabel incoming
+  files as corrupt. Kept deliberately at two categories.
+- **`storage_path` hidden from model reprs.** Local paths end with source
+  filenames, which can embed counterparty phone numbers (PII).
+- **Single path resolution in ingestion.** The input path is resolved once;
+  the same absolute path is used for validation, hashing, probing, and the
+  temporary local `storage_path`.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

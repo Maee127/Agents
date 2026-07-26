@@ -134,9 +134,9 @@ class CallMetadata:
     here: the ``seller_number`` vs ``seller_id`` question is an open decision
     (see ``docs/decisions.md``) and must not be resolved silently.
 
-    ``seller_number``, ``counterparty_phone``, and ``original_filename`` are
-    PII-bearing (filenames often embed the counterparty phone number) and are
-    excluded from ``repr``/``str``.
+    ``seller_number``, ``counterparty_phone``, ``original_filename``, and
+    ``storage_path`` are PII-bearing (filenames and paths often embed the
+    counterparty phone number) and are excluded from ``repr``/``str``.
     """
 
     call_id: str
@@ -147,7 +147,7 @@ class CallMetadata:
     counterparty_phone: str | None = field(repr=False, default=None)
     original_filename: str = field(repr=False)
     audio_channels: AudioChannels
-    storage_path: str
+    storage_path: str = field(repr=False)
 
     def __post_init__(self) -> None:
         _check_required_string(self.call_id, "call_id", InvalidCallMetadataError)
@@ -173,10 +173,11 @@ class AudioAsset:
 
     ``content_hash`` supports the specification's hash-based duplicate
     detection; its algorithm and format are chosen by ingestion and are
-    opaque to the domain.
+    opaque to the domain. ``storage_path`` is excluded from ``repr``/``str``
+    because paths can embed phone numbers.
     """
 
-    storage_path: str
+    storage_path: str = field(repr=False)
     audio_channels: AudioChannels
     content_hash: str
 
