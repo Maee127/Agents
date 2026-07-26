@@ -1,0 +1,19 @@
+---
+description: Privacy and security requirements for handling call data and credentials
+alwaysApply: true
+---
+
+# Privacy & Security
+
+Call recordings and transcripts are personal data. Treat them as sensitive.
+
+- Never log transcript text, audio content, participant names, or other PII.
+  Log opaque identifiers (call IDs) instead.
+- Secrets come from environment variables only. Never hardcode credentials in
+  source, tests, docs, or docker-compose beyond throwaway local defaults.
+- Fields holding credentials (e.g. `database_url`) use Pydantic `SecretStr` so
+  they cannot leak via repr/str/logging.
+- `.env` is git-ignored and must stay that way; only `.env.example` (with
+  placeholder values) is committed.
+- Test fixtures must use synthetic data, never real call recordings or real
+  customer information.

@@ -1,0 +1,19 @@
+---
+description: Python code quality standards (typing, linting, style)
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python Quality Standards
+
+- Target Python 3.12. Use modern syntax (PEP 604 unions `X | None`, builtin
+  generics `list[str]`, `type` statements where appropriate).
+- All functions and methods must have complete type annotations, including
+  return types. The codebase must pass `mypy --strict`.
+- Code must pass `ruff check .` and `ruff format --check .` before completion.
+- No `print()` in library code under `src/`; use logging when it is introduced.
+  Scripts under `scripts/` may print.
+- Public modules, classes, and functions get concise docstrings that state
+  intent, not restate the signature.
+- Do not add placeholder implementations that pretend to work; unimplemented
+  paths must be explicit (e.g. raise `NotImplementedError`).

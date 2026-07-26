@@ -1,0 +1,26 @@
+---
+description: Project architecture and layering rules for the sales call analysis agent
+alwaysApply: true
+---
+
+# Project Architecture
+
+`docs/project-specification.md` is the single source of truth. If any document,
+comment, or rule conflicts with it, the specification wins.
+
+## Structure
+
+- `src` layout; the only importable package is `sales_call_agent`.
+- Subpackages mirror the pipeline: `ingestion` -> `audio` -> `transcription` ->
+  `diarization` -> `speaker_identity` -> `evaluation`, with `rubric` and
+  `knowledge_base` supporting evaluation.
+
+## Layering rules
+
+- `domain` contains core models and business rules only. It must not import
+  I/O, database, or framework code (no SQLAlchemy, FastAPI, psycopg).
+- Pipeline packages may depend on `domain`, never on `api`.
+- `api` (FastAPI) orchestrates and must not contain business logic.
+- All database access goes through `persistence`; other packages must not open
+  connections or embed SQL.
+- New cross-cutting decisions get an entry in `docs/decisions.md`.

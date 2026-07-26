@@ -1,0 +1,20 @@
+---
+description: Testing conventions for pytest suites
+globs: "tests/**/*.py"
+alwaysApply: false
+---
+
+# Testing Conventions
+
+- `tests/unit/` holds fast, hermetic tests: no network, no database, no real
+  files outside `tests/fixtures/`.
+- `tests/integration/` holds tests that need external services (e.g. the
+  docker-compose PostgreSQL). They must be skippable when the service is absent.
+- Shared fixtures live in `tests/conftest.py`; static test data in
+  `tests/fixtures/`.
+- Use `monkeypatch` for environment variables; never mutate `os.environ`
+  directly.
+- Tests must not read a developer's local `.env` file (pass `_env_file=None`
+  when constructing `Settings`).
+- Test names describe behavior: `test_environment_variables_override_defaults`,
+  not `test_settings_2`.
