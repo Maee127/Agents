@@ -1,1 +1,1 @@
-"""Speaker identification: mapping diarized segments to participants (agent vs. customer)."""
+"""Speaker identification: mapping diarized segments to participants (seller vs. customer)."""

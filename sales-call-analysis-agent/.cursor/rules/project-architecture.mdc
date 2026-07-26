@@ -11,16 +11,27 @@ comment, or rule conflicts with it, the specification wins.
 ## Structure
 
 - `src` layout; the only importable package is `sales_call_agent`.
-- Subpackages mirror the pipeline: `ingestion` -> `audio` -> `transcription` ->
-  `diarization` -> `speaker_identity` -> `evaluation`, with `rubric` and
-  `knowledge_base` supporting evaluation.
+- Subpackages mirror the specification's pipeline: `ingestion` ->
+  `transcription` -> `diarization` -> `speaker_identity` -> `evaluation` ->
+  `aggregation` (planned), with `rubric` and `knowledge_base` supporting
+  evaluation.
+- `audio` is a technical subpackage supporting ingestion and transcription, not
+  an additional business pipeline stage.
+- `aggregation` will own seller/team rollups, trends, averages, and leaderboard
+  calculations; `api` will expose results to the future dashboard.
 
 ## Layering rules
 
 - `domain` contains core models and business rules only. It must not import
   I/O, database, or framework code (no SQLAlchemy, FastAPI, psycopg).
 - Pipeline packages may depend on `domain`, never on `api`.
-- `api` (FastAPI) orchestrates and must not contain business logic.
+- `api` (FastAPI) serves uploads, results, review access, and dashboard data.
+  It does not orchestrate the pipeline and must not contain business logic.
+- Pipeline execution will be handled by queue-triggered workers. Do not add
+  queue dependencies or worker code until the phase that needs them.
+- Planned infrastructure (documentation only for now): object storage adapter
+  for audio assets, queue abstraction and worker entry points, PostgreSQL for
+  structured records, pgvector for knowledge-base embeddings.
 - All database access goes through `persistence`; other packages must not open
   connections or embed SQL.
 - New cross-cutting decisions get an entry in `docs/decisions.md`.

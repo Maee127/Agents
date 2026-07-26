@@ -17,3 +17,10 @@ Call recordings and transcripts are personal data. Treat them as sensitive.
   placeholder values) is committed.
 - Test fixtures must use synthetic data, never real call recordings or real
   customer information.
+- Stored audio, transcripts, and evaluation results must be encrypted at rest.
+- Access to audio, transcripts, and evaluations is governed by role-based
+  access control.
+- Every evaluation must be traceable: rubric version, prompt/model
+  configuration, justification, and transcript evidence.
+- Access to sensitive data (audio, transcripts, evaluations) must be
+  audit-logged.

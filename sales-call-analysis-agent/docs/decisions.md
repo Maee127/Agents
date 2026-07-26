@@ -16,3 +16,31 @@ Append-only log of notable technical decisions. Newest entries last.
 - **PostgreSQL 16 with pgvector via `pgvector/pgvector:pg16` image.** Local
   docker-compose defaults work without a `.env` file; a health check is included.
 - **Ruff for lint + format, mypy strict, pytest.** Configured in `pyproject.toml`.
+
+## 2026-07-26: Specification alignment pass
+
+- **`audio` is a technical subpackage, not a pipeline stage.** It supports
+  ingestion and transcription (normalization, resampling, quality checks); the
+  business pipeline remains the specification's six stages. Separating it
+  improves testability and provider independence.
+- **API serves; workers orchestrate.** The FastAPI layer serves uploads,
+  results, review access, and dashboard data. Pipeline execution will be
+  handled by queue-triggered workers per the specification. No queue
+  dependencies or worker code added yet.
+- **`aggregation` planned as its own package.** It will own seller/team
+  rollups, trends, averages, and leaderboard calculations, covering the
+  specification's Aggregation & dashboard stage; `api` will expose results to
+  the future dashboard. No dashboard application code yet.
+- **pgvector choice is provisional.** It remains the initial direction, but is
+  not final until Phase 2 validates corpus size, retrieval quality, and
+  deployment requirements (the specification also lists Pinecone and Weaviate
+  as options).
+
+## Open decisions
+
+- **`seller_number` vs `seller_id`.** The specification's canonical metadata
+  schema uses `seller_number` (section 3) while the Stage 7 data model uses
+  `seller_id` (section 8). Proposed direction: internal `seller_id` as the
+  stable primary key, with `seller_number` retained as an external/source
+  attribute when available. Final decision requires customer confirmation; the
+  specification will then be amended explicitly, not silently.

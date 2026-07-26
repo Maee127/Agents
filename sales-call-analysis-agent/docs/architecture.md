@@ -6,37 +6,59 @@
 
 ## Layout
 
-The project uses a `src` layout with one package, `sales_call_agent`, split into
-subpackages that mirror the processing pipeline:
+The project uses a `src` layout with one package, `sales_call_agent`. Subpackages
+mirror the specification's business pipeline, with supporting technical packages
+around it:
 
 ```text
-ingestion -> audio -> transcription -> diarization -> speaker_identity -> evaluation
-                                                          (rubric)  (knowledge_base)
+ingestion -> transcription -> diarization -> speaker_identity -> evaluation -> aggregation
 ```
 
-| Package            | Responsibility                                                      |
-| ------------------ | ------------------------------------------------------------------- |
-| `domain`           | Core models and business rules; no I/O or framework dependencies    |
-| `ingestion`        | Accepting and validating incoming call recordings and metadata      |
-| `audio`            | Audio preprocessing: normalization, resampling, quality checks      |
-| `transcription`    | Speech-to-text transcription                                        |
-| `diarization`      | Segmenting audio by who spoke when                                  |
-| `speaker_identity` | Mapping diarized segments to participants (agent vs. customer)      |
-| `knowledge_base`   | Vector retrieval (PostgreSQL + pgvector) supporting evaluation      |
-| `rubric`           | Evaluation criteria, scales, and scoring guidance                   |
-| `evaluation`       | Scoring transcripts against the rubric                              |
-| `persistence`      | SQLAlchemy persistence layer                                        |
-| `api`              | FastAPI application layer (no endpoints yet)                        |
+- `audio` is a technical subpackage supporting ingestion and transcription; it is
+  not an additional business pipeline stage.
+- `rubric` and `knowledge_base` support `evaluation`.
+- `domain`, `persistence`, and `api` are cross-cutting layers.
+
+| Package                 | Responsibility                                                        |
+| ----------------------- | --------------------------------------------------------------------- |
+| `domain`                | Core models and business rules; no I/O or framework dependencies      |
+| `ingestion`             | Accepting and validating incoming call recordings and metadata        |
+| `audio`                 | Technical audio preprocessing (normalization, resampling, quality checks) supporting ingestion and transcription |
+| `transcription`         | Speech-to-text transcription                                           |
+| `diarization`           | Segmenting audio by who spoke when                                     |
+| `speaker_identity`      | Mapping diarized segments to participants (seller vs. customer)        |
+| `knowledge_base`        | Vector retrieval (PostgreSQL + pgvector) supporting evaluation         |
+| `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
+| `evaluation`            | Scoring transcripts against the rubric                                 |
+| `aggregation` (planned) | Seller/team rollups, trends, averages, and leaderboard calculations    |
+| `persistence`           | SQLAlchemy persistence layer                                           |
+| `api`                   | FastAPI layer serving uploads, results, review access, and dashboard data (no endpoints yet) |
 
 ## Layering rules
 
 - `domain` depends on nothing else in the package.
 - Pipeline packages may depend on `domain`, never on `api`.
-- `api` orchestrates; it must not contain business logic.
+- `api` serves uploads, results, review access, and data for the future dashboard.
+  It does not orchestrate the pipeline and must not contain business logic.
+- Pipeline execution will be handled by queue-triggered workers, per the
+  specification. No queue dependencies or worker code exist yet.
 - Database access goes through `persistence`; other packages do not open
   connections directly.
 
+## Planned infrastructure
+
+Planned architecture only — no dependencies or implementation files exist yet:
+
+- Object storage adapter for audio assets (S3-equivalent), organized by seller and
+  date, encrypted at rest with role-based access.
+- Queue abstraction and worker entry points that start pipeline processing when
+  new files arrive.
+- PostgreSQL for structured records (calls, scores, sellers).
+- pgvector for knowledge-base embeddings (provisional until Phase 2 validates
+  corpus size, retrieval quality, and deployment requirements).
+
 ## Current state
 
-Scaffold only. No business logic, endpoints, models, or migrations exist yet.
-Configuration (`config.py`) and this structure are the only implemented pieces.
+Scaffold only. No business logic, endpoints, workers, database models, migrations,
+or dashboard code exist yet. Configuration (`config.py`) and this structure are
+the only implemented pieces.
