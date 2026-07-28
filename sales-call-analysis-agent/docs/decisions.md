@@ -185,6 +185,35 @@ Append-only log of notable technical decisions. Newest entries last.
 - **Future real adapter direction.** ``pyannote.audio`` diarization-only is the
   likely first real provider (not WhisperX combined ASR/alignment).
 
+## 2026-07-28: Transcript-speaker alignment boundary
+
+- **Deterministic engine, not a provider adapter.** Alignment combines
+  provider-independent ``TranscriptionResult`` and ``DiarizationResult`` and
+  uses deterministic interval overlap logic. No external model/provider is used
+  in this stage.
+- **Anonymous labels preserved.** Alignment assigns existing canonical labels
+  (``SPEAKER_XX``) only. It never introduces seller/customer semantics; role
+  mapping remains the later ``speaker_identity`` stage.
+- **Word-level first, segment fallback.** If a segment's words are all timed,
+  words are aligned individually. Otherwise the segment interval is aligned as
+  a whole. Mixed method results are valid and explicitly flagged.
+- **Ambiguity and unassigned content are retained.** Weak or tied timing
+  evidence does not force assignment; results preserve ambiguous/unassigned
+  status and deterministic candidate evidence.
+- **Same-speaker overlap is unioned for scoring.** Overlap is aggregated by
+  canonical speaker label and unioned per target interval to avoid
+  double-counting duplicate same-speaker time spans.
+- **Tolerance is comparison-only.** A small boundary tolerance is applied only
+  during overlap comparison, never by mutating source timestamps. Candidate
+  overlap remains bounded to transcript duration, so overlap ratios remain in
+  ``[0, 1]``.
+- **No processing-duration field in alignment results.** Output is semantic
+  deterministic data; orchestration/observability timing belongs to a future
+  layer.
+- **Result flags are engine-derived.** The engine computes quality flags before
+  constructing frozen results; models validate consistency and do not mutate
+  inferred flags.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

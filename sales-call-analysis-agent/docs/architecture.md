@@ -11,7 +11,7 @@ mirror the specification's business pipeline, with supporting technical packages
 around it:
 
 ```text
-ingestion -> transcription -> diarization -> speaker_identity -> evaluation -> aggregation
+ingestion -> transcription -> diarization -> alignment -> speaker_identity -> evaluation -> aggregation
 ```
 
 - `audio` is a technical subpackage supporting ingestion and transcription; it is
@@ -26,6 +26,7 @@ ingestion -> transcription -> diarization -> speaker_identity -> evaluation -> a
 | `audio`                 | Technical audio preprocessing (normalization, resampling, quality checks) supporting ingestion and transcription |
 | `transcription`         | Speech-to-text transcription                                           |
 | `diarization`           | Segmenting audio by who spoke when                                     |
+| `alignment`             | Deterministic timestamp alignment of transcript content to anonymous speaker labels |
 | `speaker_identity`      | Mapping diarized segments to participants (seller vs. customer)        |
 | `knowledge_base`        | Vector retrieval (PostgreSQL + pgvector) supporting evaluation         |
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
