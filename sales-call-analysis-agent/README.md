@@ -22,6 +22,29 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
+Optional local ASR (faster-whisper):
+
+```bash
+pip install -e ".[asr,dev]"
+```
+
+The ASR extra is not required for domain, ingestion, normalization, or most
+tests. The provider module imports without it; model loading fails clearly if
+the extra is missing.
+
+Default ASR posture is offline (`local_files_only=True`). Named model sizes
+(e.g. `tiny`) load from the local Hugging Face cache only. If you point
+`model_size_or_path` at a local CTranslate2 model directory, that directory
+must already contain at least:
+
+- `config.json`
+- `model.bin`
+- `tokenizer.json`
+
+Missing `tokenizer.json` is rejected before model construction so faster-whisper
+cannot fall back to downloading a tokenizer from Hugging Face. This project
+does not ship a model downloader; obtain or convert models out of band.
+
 Configuration is environment-driven with safe local defaults, so no `.env`
 file is required for a first run. To customize, copy `.env.example` to `.env`
 and edit it. Never commit `.env`.
@@ -40,10 +63,18 @@ database `sales_calls`); override them via `.env` if desired.
 
 | Command                | Purpose                       |
 | ---------------------- | ----------------------------- |
-| `pytest`               | Run the test suite            |
+| `pytest`               | Run the fast test suite       |
 | `ruff check .`         | Lint                          |
 | `ruff format --check .`| Verify formatting             |
 | `mypy src`             | Static type checking (strict) |
+
+Local ASR integration tests are opt-in and skipped by default:
+
+```bash
+# Requires: [asr] installed, tiny model already cached locally, no network
+set RUN_LOCAL_ASR_TESTS=1
+pytest -m slow
+```
 
 ## Project layout
 

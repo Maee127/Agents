@@ -23,6 +23,9 @@ dev = [
     "mypy>=1.13",
     "uvicorn[standard]>=0.32",
 ]
+asr = [
+    "faster-whisper>=1.1,<2",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sales_call_agent"]
@@ -30,6 +33,9 @@ packages = ["src/sales_call_agent"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "slow: opt-in tests that may load local ASR models (deselect with '-m \"not slow\"')",
+]
 
 [tool.ruff]
 target-version = "py312"

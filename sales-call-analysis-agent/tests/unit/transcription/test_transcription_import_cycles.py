@@ -41,3 +41,17 @@ def test_import_audio_normalize_then_transcription_has_no_cycle() -> None:
         "sales_call_agent.audio.normalize",
         "sales_call_agent.transcription.fake",
     )
+
+
+def test_import_faster_whisper_provider_then_ingestion_has_no_cycle() -> None:
+    _import_in_order(
+        "sales_call_agent.transcription.providers.faster_whisper",
+        "sales_call_agent.ingestion.local_file",
+    )
+
+
+def test_import_ingestion_then_faster_whisper_provider_has_no_cycle() -> None:
+    _import_in_order(
+        "sales_call_agent.ingestion.local_file",
+        "sales_call_agent.transcription.providers.faster_whisper",
+    )

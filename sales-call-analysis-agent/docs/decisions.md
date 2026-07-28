@@ -117,6 +117,45 @@ Append-only log of notable technical decisions. Newest entries last.
 - **Warnings are sanitized to application-controlled codes.** Raw provider
   warning messages are not exposed; warning codes must be safe identifiers.
 
+## 2026-07-28: First real ASR adapter — faster-whisper
+
+- **Local `faster-whisper` is the first concrete ASR adapter.** It implements
+  `TranscriptionProvider`, maps into existing transcription models, and keeps
+  library objects inside the adapter.
+- **Optional `[asr]` extra.** `faster-whisper` is not a default/runtime/dev
+  dependency; install with `pip install -e ".[asr,dev]"`. The provider module
+  remains importable without the extra; missing dependency fails only on model
+  load.
+- **Default posture is `local_files_only=True`.** Tests never download models.
+  The slow real-model integration test requires `RUN_LOCAL_ASR_TESTS=1`, the
+  package installed, and a locally available model.
+- **No adapter-level inference timeout.** CTranslate2 work is not reliably
+  cancellable via threads/futures; timeouts remain a future worker concern.
+- **No result-level aggregate confidence.** Segment/word native metrics are
+  preserved; unweighted averages are not invented.
+- **Conservative no-speech detection.** Empty/whitespace-only segment sets map
+  to `NO_SPEECH_DETECTED`; `no_speech_prob` is evidence only and does not
+  discard non-empty speech.
+- **Language validation is allowlist-based.** Unsupported codes are rejected
+  before inference using a frozen Whisper language-code set. English-only
+  models (named `*.en` or loaded models that expose `is_multilingual=False`)
+  reject non-`en` expected languages instead of silently coercing to English.
+- **Privacy-safe model identity.** Named sizes stay readable (`tiny`, `base`,
+  …). Local filesystem paths become `local-model-<sha256-12>` derived from the
+  normalized path; path fields are hidden from config `repr`/`str`.
+- **Offline local directories.** When `local_files_only=True` and
+  `model_size_or_path` is a directory, the adapter preflights
+  `config.json`, `model.bin`, and `tokenizer.json` before constructing
+  `WhisperModel`, so missing tokenizer files cannot trigger Hugging Face
+  `from_pretrained` downloads. No in-adapter model downloader is provided.
+- **Provider instances are not thread-safe.** Until worker orchestration exists,
+  use one provider instance per single-threaded worker, or serialize access.
+  Thread locking, process isolation, and hard timeout enforcement are deferred
+  to the worker/orchestration milestone.
+- **Full-text composition is deterministic concatenation.** Accepted segment
+  texts are joined with `"".join(...)` and may glue words if the provider omits
+  inter-segment spacing. No artificial spacing correction is applied in v1.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

@@ -26,3 +26,7 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local ASR model caches (optional extra)
+.models/
+.cache/
