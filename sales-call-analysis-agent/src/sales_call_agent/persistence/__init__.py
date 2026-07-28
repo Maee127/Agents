@@ -1,1 +1,1 @@
-"""Database persistence layer (SQLAlchemy + PostgreSQL). No models defined yet."""
+"""Provider-independent persistence contracts and deterministic fakes."""

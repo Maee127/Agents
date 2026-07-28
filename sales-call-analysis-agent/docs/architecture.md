@@ -35,7 +35,7 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> kn
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
 | `evaluation`            | Provider-independent criterion-level call evaluation contracts, validation boundary, and provider seam |
 | `aggregation`           | Deterministic call-level score aggregation, coverage metrics, and publication readiness derivation |
-| `persistence`           | SQLAlchemy persistence layer                                           |
+| `persistence`           | Provider-independent repository contracts, versioned lifecycle semantics, and deterministic in-memory unit-of-work fakes |
 | `api`                   | FastAPI layer serving uploads, results, review access, and dashboard data (no endpoints yet) |
 
 ## Layering rules
@@ -63,6 +63,9 @@ Planned architecture only — no dependencies or implementation files exist yet:
 
 ## Current state
 
-Scaffold only. No business logic, endpoints, workers, database models, migrations,
-or dashboard code exist yet. Configuration (`config.py`) and this structure are
-the only implemented pieces.
+Core pipeline/business boundaries are implemented (`ingestion`, `audio`,
+`transcription`, `diarization`, `alignment`, `speaker_identity`, `knowledge`,
+`evaluation`, and call-level `aggregation`). `persistence` now defines
+provider-independent interfaces and deterministic in-memory fakes only. There
+are still no production database models, migrations, queue workers, or
+dashboard code.

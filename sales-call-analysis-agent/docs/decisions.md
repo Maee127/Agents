@@ -358,6 +358,49 @@ Append-only log of notable technical decisions. Newest entries last.
   citations, criterion prose, and proprietary content; exception messages stay
   log-safe and field-oriented.
 
+## 2026-07-28: Persistence contracts and repository interfaces (v1)
+
+- **Persistence is provider-independent at the contract boundary.** The
+  `persistence` package defines repository protocols, typed keys, and a unit of
+  work abstraction over existing domain/pipeline models. No SQLAlchemy/psycopg/
+  Alembic/table details are exposed in these contracts.
+- **`Call` remains the mutable aggregate root.** The existing
+  `domain.models.Call` (containing `metadata`, `audio`, and `status`) is the
+  mutable record with optimistic revision updates. Domain models were not
+  changed to add persistence fields.
+- **Stage outputs use one canonical accepted result per call/stage in v1.**
+  Transcription, diarization, alignment, and role-assignment repositories allow
+  exact idempotent duplicate writes but reject different writes under the same
+  call/stage key. Rerun history/supersession workflows are deferred.
+- **Knowledge source lifecycle is revisioned; sections are append-only.**
+  `KnowledgeSource` uses optimistic revisions for status/content updates by
+  `source_id`; `KnowledgeSection` records are immutable and append-only with
+  atomic batch add semantics.
+- **Rubric content is immutable per `(rubric_id, version)`; status can
+  transition with revision control.** Allowed transitions:
+  `DRAFT -> APPROVED`, `DRAFT -> RETIRED`, `APPROVED -> RETIRED`. Reverse
+  transitions are rejected; rubric content changes require a new SemVer
+  revision.
+- **Evaluation and call-score records are append-only immutable.** Exact equal
+  duplicate writes are idempotent; differing duplicates conflict. Evaluation
+  identity is `call + rubric revision + provider + model`.
+- **Call-score identity requires explicit evaluation identity and deterministic
+  policy fingerprint.** Score persistence requires an explicit `EvaluationKey`
+  and continuity checks on call/rubric identity. Aggregation policy identity
+  uses canonical JSON with `float.hex()` values + SHA-256 (64 lowercase hex).
+- **Conflict hierarchy is explicit.** `PersistenceConflictError` is the common
+  parent for `RecordAlreadyExistsError` and `StaleRecordVersionError`.
+- **In-memory unit-of-work simulates optimistic snapshot transactions.**
+  Multiple UoWs share one committed in-memory store with a store revision.
+  Commit succeeds only when baseline revision matches; stale commits fail.
+  Rollback refreshes working state from committed state.
+- **Deterministic ordering is part of repository contracts.** List outputs are
+  sorted by explicit keys (call ID, source ID, section tuple order, parsed
+  SemVer, `EvaluationKey.sort_key`, `CallScoreKey.sort_key`) and returned as
+  tuples only.
+- **No hard delete methods in v1.** Deletion/retention policies remain future
+  work tied to privacy and compliance requirements.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata
