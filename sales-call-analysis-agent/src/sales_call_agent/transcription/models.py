@@ -65,7 +65,10 @@ def _ensure_finite_non_negative_timestamp(
 
 
 def _ensure_safe_warning_code(value: object, field_name: str, error: type[Exception]) -> None:
-    _ensure_required_string(value, field_name, error)
+    if not isinstance(value, str):
+        raise error(f"{field_name} must be a string")
+    if not value.strip():
+        raise error(f"{field_name} must not be empty or whitespace-only")
     if not _SAFE_IDENTIFIER_RE.fullmatch(value):
         raise error(f"{field_name} must be a safe warning code")
 
@@ -112,13 +115,19 @@ class TranscriptWord:
                 "start_seconds and end_seconds must be provided together"
             )
         if has_start and has_end:
+            word_start = self.start_seconds
+            word_end = self.end_seconds
+            if word_start is None or word_end is None:
+                raise InvalidTranscriptionResponseError(
+                    "timed words require both start_seconds and end_seconds"
+                )
             _ensure_finite_non_negative_timestamp(
-                self.start_seconds, "start_seconds", InvalidTranscriptionResponseError
+                word_start, "start_seconds", InvalidTranscriptionResponseError
             )
             _ensure_finite_non_negative_timestamp(
-                self.end_seconds, "end_seconds", InvalidTranscriptionResponseError
+                word_end, "end_seconds", InvalidTranscriptionResponseError
             )
-            if self.end_seconds < self.start_seconds:
+            if word_end < word_start:
                 raise InvalidTranscriptionResponseError("end_seconds must be >= start_seconds")
         for metric in self.provider_confidence:
             if not isinstance(metric, ProviderConfidenceMetric):
@@ -170,22 +179,23 @@ class TranscriptSegment:
                     "words must be either all timestamped or all untimed"
                 )
             if all_timed:
-                previous_start = 0.0
-                for idx, word in enumerate(self.words):
-                    assert word.start_seconds is not None
-                    assert word.end_seconds is not None
-                    if idx > 0 and word.start_seconds < previous_start:
+                previous_word_start: float | None = None
+                for word in self.words:
+                    word_start = word.start_seconds
+                    word_end = word.end_seconds
+                    if word_start is None or word_end is None:
+                        raise InvalidTranscriptionResponseError(
+                            "timed words require both start_seconds and end_seconds"
+                        )
+                    if previous_word_start is not None and word_start < previous_word_start:
                         raise InvalidTranscriptionResponseError(
                             "word start times must be non-decreasing"
                         )
-                    if (
-                        word.start_seconds < self.start_seconds
-                        or word.end_seconds > self.end_seconds
-                    ):
+                    if word_start < self.start_seconds or word_end > self.end_seconds:
                         raise InvalidTranscriptionResponseError(
                             "word timestamps must stay within the segment range"
                         )
-                    previous_start = word.start_seconds
+                    previous_word_start = word_start
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
