@@ -156,6 +156,35 @@ Append-only log of notable technical decisions. Newest entries last.
   texts are joined with `"".join(...)` and may glue words if the provider omits
   inter-segment spacing. No artificial spacing correction is applied in v1.
 
+## 2026-07-28: Diarization boundary contract
+
+- **Provider-independent diarization models and protocol.** The boundary accepts
+  a normalized-audio request contract and returns validated speaker-turn models
+  only; provider SDK objects never escape adapters.
+- **Anonymous call-local speaker labels.** Canonical labels match
+  ``^SPEAKER_[0-9]{2,}$`` (e.g. ``SPEAKER_00``, ``SPEAKER_100``). No
+  seller/customer semantics in diarization; role assignment stays in
+  ``speaker_identity``.
+- **Speaker count is derived, not stored.** ``DiarizationResult.speaker_count``
+  is computed from unique labels in ``turns``; empty turns naturally yield ``0``.
+- **Overlap is preserved.** Cross-speaker overlapping turns remain visible;
+  ``OVERLAPPING_SPEECH_DETECTED`` is required exactly when cross-speaker overlap
+  exists. Same-speaker overlap is allowed structurally for now.
+- **Quality flags are adapter-owned.** Providers/fakes compute flags before
+  constructing results; domain models validate consistency but do not mutate
+  flags. ``SINGLE_SPEAKER_DETECTED`` is required when exactly one speaker is
+  present. Valid no-speech success uses ``turns == ()`` with
+  ``NO_SPEECH_SEGMENTS``.
+- **Speaker-count constraints.** Requests use either ``exact_expected_speakers``
+  or ``min``/``max`` hints, never both. Exact count is enforced by
+  ``run_diarization()``; min/max are provider hints only in v1.
+  ``SPEAKER_COUNT_UNCERTAIN`` is reserved for explicit provider uncertainty,
+  not inferred from hints.
+- **Diarization-local confidence metrics.** Parallel to transcription; no
+  universal diarization score and no hard-coded short-turn threshold in models.
+- **Future real adapter direction.** ``pyannote.audio`` diarization-only is the
+  likely first real provider (not WhisperX combined ASR/alignment).
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

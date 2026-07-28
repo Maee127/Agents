@@ -20,6 +20,7 @@ from sales_call_agent.ingestion import (
     ingest_local_file,
 )
 
+# Patch where the symbol is looked up, not where it was originally defined.
 _PROBE_TARGET = "sales_call_agent.ingestion.local_file.probe_audio"
 
 FILE_CONTENT = b"synthetic-mp3-bytes"
