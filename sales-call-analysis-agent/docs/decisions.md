@@ -250,6 +250,43 @@ Append-only log of notable technical decisions. Newest entries last.
   and assignment models carry no transcript text, and error messages stay
   log-safe (field/status oriented only, no PII/path/payload leakage).
 
+## 2026-07-28: Knowledge-source and sales-rubric boundary (v1)
+
+- **Single `knowledge` package owns the boundary.** ``knowledge.models`` defines
+  immutable source/rubric contracts; ``knowledge.rubric`` defines deterministic
+  assembly. Existing ``rubric`` and ``knowledge_base`` packages remain
+  placeholders; no duplicate models are introduced there.
+- **Source knowledge and rubric are distinct objects.** ``KnowledgeSource`` and
+  ``KnowledgeSection`` represent approved methodology content; ``SalesRubric``
+  and ``RubricCriterion`` represent curated evaluation policy.
+- **Source lifecycle is explicit via enum status.** ``KnowledgeSourceStatus``
+  distinguishes ``DRAFT``, ``APPROVED``, and ``RETIRED``. Approved rubrics may
+  cite only currently approved sources at build time; historical rubric objects
+  remain valid value objects even if a source is retired later.
+- **Criterion provenance is explicit and strict.** ``CriterionOrigin`` enforces
+  that ``SOURCE_BACKED`` criteria require citations, while
+  ``ORGANIZATION_DEFINED`` criteria must have no citations in v1.
+- **No stored source ID list on rubrics.** ``SalesRubric.source_ids`` is a
+  computed property derived deterministically from criterion citations.
+- **Criterion order is authored order.** Builder preserves
+  ``RubricBuildRequest.criteria`` tuple order exactly; criteria are never
+  sorted silently.
+- **Scoring scales are explicit and validated.** Each criterion carries an
+  immutable ``RubricScoringScale`` with strictly increasing score-level order.
+  Builder/model code rejects malformed order instead of normalizing it.
+- **Evidence policy lives at criterion level.** ``EvidenceRequirement`` defines
+  transcript/timestamp/span/role/human-review requirements; no per-score-level
+  evidence counters are modeled in v1.
+- **Strict semantic validators.** IDs use safe identifier format; content hashes
+  are strict lowercase SHA-256; language tags follow a conservative explicit
+  policy; rubric versions use strict SemVer core ``MAJOR.MINOR.PATCH`` only.
+- **Deterministic assembly only.** Rubric building validates reference
+  integrity, provenance, source status for approved rubrics, and citation range
+  containment without LLMs, embeddings, parsers, network calls, or persistence.
+- **Privacy and proprietary text treatment.** Source titles/headings/text and
+  rubric descriptive guidance are repr-hidden; exceptions remain log-safe and do
+  not expose proprietary text, paths, transcripts, or payloads.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

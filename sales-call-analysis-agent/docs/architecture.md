@@ -11,12 +11,13 @@ mirror the specification's business pipeline, with supporting technical packages
 around it:
 
 ```text
-ingestion -> transcription -> diarization -> alignment -> speaker_identity -> evaluation -> aggregation
+ingestion -> transcription -> diarization -> alignment -> speaker_identity -> knowledge -> evaluation -> aggregation
 ```
 
 - `audio` is a technical subpackage supporting ingestion and transcription; it is
   not an additional business pipeline stage.
-- `rubric` and `knowledge_base` support `evaluation`.
+- `knowledge` currently owns source-knowledge and rubric value contracts plus deterministic rubric assembly.
+- `rubric` and `knowledge_base` remain placeholders for future split/expansion only.
 - `domain`, `persistence`, and `api` are cross-cutting layers.
 
 | Package                 | Responsibility                                                        |
@@ -28,6 +29,7 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> ev
 | `diarization`           | Segmenting audio by who spoke when                                     |
 | `alignment`             | Deterministic timestamp alignment of transcript content to anonymous speaker labels |
 | `speaker_identity`      | Deterministic mapping from anonymous aligned speakers to `SELLER`/`CUSTOMER`/`UNKNOWN` with evidence traceability |
+| `knowledge`             | Provider-independent knowledge-source and rubric contracts plus deterministic rubric assembly |
 | `knowledge_base`        | Vector retrieval (PostgreSQL + pgvector) supporting evaluation         |
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
 | `evaluation`            | Scoring transcripts against the rubric                                 |
