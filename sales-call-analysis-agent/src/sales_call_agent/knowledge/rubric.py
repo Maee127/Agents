@@ -70,9 +70,7 @@ def build_sales_rubric(request: RubricBuildRequest) -> SalesRubric:
 
     normalized_criteria: list[RubricCriterion] = []
     for criterion in request.criteria:
-        normalized_citations = tuple(
-            sorted(criterion.source_citations, key=_citation_sort_key)
-        )
+        normalized_citations = tuple(sorted(criterion.source_citations, key=_citation_sort_key))
         _validate_citations(
             criterion=criterion,
             citations=normalized_citations,

@@ -213,9 +213,7 @@ class KnowledgeSection:
         _ensure_required_string(self.text, "text", InvalidKnowledgeSectionError)
         _ensure_non_negative_integer(self.ordinal, "ordinal", InvalidKnowledgeSectionError)
         if (self.page_start is None) != (self.page_end is None):
-            raise InvalidKnowledgeSectionError(
-                "page_start and page_end must be provided together"
-            )
+            raise InvalidKnowledgeSectionError("page_start and page_end must be provided together")
         if self.page_start is not None and self.page_end is not None:
             _ensure_positive_integer(self.page_start, "page_start", InvalidKnowledgeSectionError)
             _ensure_positive_integer(self.page_end, "page_end", InvalidKnowledgeSectionError)

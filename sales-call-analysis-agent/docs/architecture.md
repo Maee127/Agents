@@ -32,7 +32,7 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> kn
 | `knowledge`             | Provider-independent knowledge-source and rubric contracts plus deterministic rubric assembly |
 | `knowledge_base`        | Vector retrieval (PostgreSQL + pgvector) supporting evaluation         |
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
-| `evaluation`            | Scoring transcripts against the rubric                                 |
+| `evaluation`            | Provider-independent criterion-level call evaluation contracts, validation boundary, and provider seam |
 | `aggregation` (planned) | Seller/team rollups, trends, averages, and leaderboard calculations    |
 | `persistence`           | SQLAlchemy persistence layer                                           |
 | `api`                   | FastAPI layer serving uploads, results, review access, and dashboard data (no endpoints yet) |

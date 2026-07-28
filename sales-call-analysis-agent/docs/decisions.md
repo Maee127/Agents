@@ -287,6 +287,41 @@ Append-only log of notable technical decisions. Newest entries last.
   rubric descriptive guidance are repr-hidden; exceptions remain log-safe and do
   not expose proprietary text, paths, transcripts, or payloads.
 
+## 2026-07-28: Evidence-based call-evaluation boundary (v1)
+
+- **Provider-independent contract with validated provider seam.**
+  ``evaluation.models`` defines immutable request/result contracts;
+  ``evaluation.provider.run_evaluation()`` performs cross-model validation;
+  providers must map output into these contracts.
+- **Exact rubric coverage is mandatory.** Every rubric criterion appears exactly
+  once in evaluation results, in rubric order; missing/extra/duplicate
+  criterion outputs are rejected.
+- **Scores must match rubric levels exactly.** Scored results require a score
+  equal to one allowed criterion scale level and a matching score-level label.
+  Unsupported/interpolated scores are rejected.
+- **Evidence references stable transcript indices, not duplicated text.**
+  ``TranscriptEvidenceSpan`` stores segment index, optional inclusive source
+  word index range, speaker label, and speaker role only. Transcript text is
+  not duplicated in evaluation outputs.
+- **Role consistency is enforced across boundaries.** Evidence span roles must
+  match the role-assignment role for each speaker label; unknown/ambiguous
+  roles are never reinterpreted as seller/customer.
+- **Absence evidence is explicit and structured.** Absence scoring requires
+  dedicated ``AbsenceEvidence`` with validated scope and reviewed segments, and
+  is allowed only for criteria whose evidence requirement permits it.
+- **Status semantics are strict.** Criterion status is one of
+  ``SCORED``, ``NOT_APPLICABLE``, or ``INSUFFICIENT_EVIDENCE`` with
+  exact score/evidence/reason consistency rules per status.
+- **Human review reason is explicit.** Human review uses
+  ``human_review_required`` plus a closed ``human_review_reason`` enum;
+  warning codes remain operational/sanitized warnings only.
+- **Quality flags are derived and consistency-checked.** Flags cover scored
+  completeness, partial evaluation, insufficiency, applicability, absence
+  usage, unknown-role material participation, human-review presence, and
+  provider warnings.
+- **No total score in this stage.** Aggregation, normalization, and seller
+  performance summaries remain out of scope for this boundary.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata
