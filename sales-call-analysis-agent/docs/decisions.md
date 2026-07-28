@@ -214,6 +214,42 @@ Append-only log of notable technical decisions. Newest entries last.
   constructing frozen results; models validate consistency and do not mutate
   inferred flags.
 
+## 2026-07-28: Speaker-role assignment boundary (v1)
+
+- **Deterministic engine with speaker-scoped evidence only.** Every
+  ``RoleEvidence`` references one canonical aligned speaker label. Call-level
+  evidence is intentionally out of scope in v1.
+- **Minimal fixed configuration policy.** ``RoleAssignmentConfig`` includes only
+  ``expected_seller_count``, ``expected_customer_count``, and
+  ``allow_heuristics``. Authoritative precedence is always highest, complement
+  role assignment is unsupported, and heuristics are considered only when
+  enabled.
+- **Evidence strength is derived from evidence type.** Strength is a computed
+  property; invalid type-strength combinations are impossible by construction.
+  Mapping: operator/human confirmation -> authoritative; voice-id/channel ->
+  strong; known seller source -> moderate; opening/turn-pattern/talk-time ->
+  weak.
+- **Top-strength-only traceability.** Per speaker, the engine chooses the
+  highest strength bucket with evidence and makes decisions only from that
+  bucket. Supporting/conflicting evidence IDs contain only top-level evidence
+  IDs and are sorted deterministically.
+- **Conflict semantics are explicit.** Top-level mixed-role evidence returns
+  ``UNKNOWN`` + ``CONFLICTED`` with empty supporting IDs and populated
+  conflicting IDs. Authoritative conflicts use
+  ``AUTHORITATIVE_CONFLICT``; all other top-strength conflicts use
+  ``CONFLICTING_TOP_STRENGTH_EVIDENCE``.
+- **Unknown handling is explicit and non-guessing.** No evidence yields
+  ``NO_EVIDENCE``. Weak-only evidence with heuristics disabled yields
+  ``HEURISTICS_DISABLED``. Neither case carries evidence IDs.
+- **Result quality flags are engine-derived; model validation is local-fact
+  based.** The result model validates only assignment-inferable conditions
+  (unknown/conflict/heuristic/partial/speaker-count shape). Engine-derived
+  flags that depend on discarded inputs (e.g., no-role-evidence source context,
+  expected-count config context) are trusted as provided and not mutated.
+- **Privacy posture retained.** Request ``alignment`` is repr-hidden, evidence
+  and assignment models carry no transcript text, and error messages stay
+  log-safe (field/status oriented only, no PII/path/payload leakage).
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

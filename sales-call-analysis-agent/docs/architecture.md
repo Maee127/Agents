@@ -27,7 +27,7 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> ev
 | `transcription`         | Speech-to-text transcription                                           |
 | `diarization`           | Segmenting audio by who spoke when                                     |
 | `alignment`             | Deterministic timestamp alignment of transcript content to anonymous speaker labels |
-| `speaker_identity`      | Mapping diarized segments to participants (seller vs. customer)        |
+| `speaker_identity`      | Deterministic mapping from anonymous aligned speakers to `SELLER`/`CUSTOMER`/`UNKNOWN` with evidence traceability |
 | `knowledge_base`        | Vector retrieval (PostgreSQL + pgvector) supporting evaluation         |
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
 | `evaluation`            | Scoring transcripts against the rubric                                 |
