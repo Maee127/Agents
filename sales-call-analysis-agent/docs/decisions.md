@@ -322,6 +322,42 @@ Append-only log of notable technical decisions. Newest entries last.
 - **No total score in this stage.** Aggregation, normalization, and seller
   performance summaries remain out of scope for this boundary.
 
+## 2026-07-28: Call-level aggregation and scoring boundary (v1)
+
+- **Applied policy is stored in each score result.** ``CallScoreResult`` retains
+  frozen ``AggregationConfig`` so publication readiness and limited-coverage
+  outcomes are reproducible from the result object alone.
+- **Aggregation preserves evaluation intent exactly.** Each
+  ``CriterionScoreContribution`` copies ``reason_code``,
+  ``human_review_required``, and ``human_review_reason`` directly from
+  ``CriterionEvaluation``; aggregation does not reinterpret criterion outcomes.
+- **Normalization and weighting are deterministic and unrounded.** For scored
+  criteria, ``normalized_score = (raw_score - scale_min) / (scale_max - scale_min)``
+  using the first/last validated scale levels; weighted points are
+  ``normalized_score * criterion_weight``; accumulations use ``math.fsum``.
+- **Coverage semantics distinguish applicable vs non-applicable criteria.**
+  Applicable criteria are scored or insufficient only; all-not-applicable
+  calls produce ``None`` coverage metrics, while all-insufficient calls produce
+  ``0.0`` coverage metrics.
+- **Threshold equality passes.** Limited-coverage flags use strict
+  ``coverage < minimum`` checks; equality to configured minima is publishable
+  from a coverage standpoint.
+- **Publication status has explicit precedence with concurrent flags retained.**
+  Precedence is: ``NO_SCORABLE_CRITERIA`` -> ``HUMAN_REVIEW_REQUIRED`` (when
+  blocking enabled) -> ``LIMITED_COVERAGE`` -> ``PUBLISHABLE``. Quality flags
+  retain concurrent conditions regardless of status precedence.
+- **Fully-scored semantics are applicable-rubric scoped.**
+  ``FULLY_SCORED_APPLICABLE_RUBRIC`` requires at least one applicable
+  criterion, no insufficient criteria, and all applicable criteria scored;
+  ``NOT_APPLICABLE`` criteria do not block this flag.
+- **Rubric order is preserved end-to-end.** Aggregation requires exact rubric
+  criterion coverage and preserves rubric tuple order in contributions with no
+  sorting or dictionary-order dependence.
+- **Privacy-safe boundary is maintained.** Aggregation request hides rubric and
+  evaluation in repr; contributions and result exclude transcript text,
+  citations, criterion prose, and proprietary content; exception messages stay
+  log-safe and field-oriented.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata

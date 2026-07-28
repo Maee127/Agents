@@ -17,6 +17,7 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> kn
 - `audio` is a technical subpackage supporting ingestion and transcription; it is
   not an additional business pipeline stage.
 - `knowledge` currently owns source-knowledge and rubric value contracts plus deterministic rubric assembly.
+- `aggregation` now owns deterministic call-level score aggregation from criterion evaluations.
 - `rubric` and `knowledge_base` remain placeholders for future split/expansion only.
 - `domain`, `persistence`, and `api` are cross-cutting layers.
 
@@ -33,7 +34,7 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> kn
 | `knowledge_base`        | Vector retrieval (PostgreSQL + pgvector) supporting evaluation         |
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
 | `evaluation`            | Provider-independent criterion-level call evaluation contracts, validation boundary, and provider seam |
-| `aggregation` (planned) | Seller/team rollups, trends, averages, and leaderboard calculations    |
+| `aggregation`           | Deterministic call-level score aggregation, coverage metrics, and publication readiness derivation |
 | `persistence`           | SQLAlchemy persistence layer                                           |
 | `api`                   | FastAPI layer serving uploads, results, review access, and dashboard data (no endpoints yet) |
 
