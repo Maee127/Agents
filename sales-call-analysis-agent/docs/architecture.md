@@ -14,10 +14,15 @@ around it:
 ingestion -> transcription -> diarization -> alignment -> speaker_identity -> knowledge -> evaluation -> aggregation
 ```
 
+Orchestration coordinates those stages through application-level `orchestration`
+(not a generic DAG) and persists via `persistence` unit-of-work boundaries.
+
 - `audio` is a technical subpackage supporting ingestion and transcription; it is
   not an additional business pipeline stage.
 - `knowledge` currently owns source-knowledge and rubric value contracts plus deterministic rubric assembly.
 - `aggregation` now owns deterministic call-level score aggregation from criterion evaluations.
+- `orchestration` owns deterministic stage sequencing, reuse of canonical
+  persisted results, status transitions, and retry classification.
 - `rubric` and `knowledge_base` remain placeholders for future split/expansion only.
 - `domain`, `persistence`, and `api` are cross-cutting layers.
 
@@ -35,17 +40,20 @@ ingestion -> transcription -> diarization -> alignment -> speaker_identity -> kn
 | `rubric`                | Evaluation criteria, scales, and scoring guidance                      |
 | `evaluation`            | Provider-independent criterion-level call evaluation contracts, validation boundary, and provider seam |
 | `aggregation`           | Deterministic call-level score aggregation, coverage metrics, and publication readiness derivation |
+| `orchestration`         | Application service coordinating stage order, reuse, persistence commits, and resumability |
 | `persistence`           | Provider-independent repository contracts, versioned lifecycle semantics, and deterministic in-memory unit-of-work fakes |
 | `api`                   | FastAPI layer serving uploads, results, review access, and dashboard data (no endpoints yet) |
 
 ## Layering rules
 
 - `domain` depends on nothing else in the package.
-- Pipeline packages may depend on `domain`, never on `api`.
+- Pipeline packages may depend on `domain`, never on `api` or `orchestration`.
+- `orchestration` depends on stage contracts, deterministic engines, and
+  persistence protocols/UoW; it does not depend on `api`.
 - `api` serves uploads, results, review access, and data for the future dashboard.
   It does not orchestrate the pipeline and must not contain business logic.
-- Pipeline execution will be handled by queue-triggered workers, per the
-  specification. No queue dependencies or worker code exist yet.
+- Future queue workers call `run_call_pipeline(...)`; workers own scheduling,
+  backoff, and concurrency limits. No queue dependencies or worker code exist yet.
 - Database access goes through `persistence`; other packages do not open
   connections directly.
 
@@ -65,7 +73,8 @@ Planned architecture only — no dependencies or implementation files exist yet:
 
 Core pipeline/business boundaries are implemented (`ingestion`, `audio`,
 `transcription`, `diarization`, `alignment`, `speaker_identity`, `knowledge`,
-`evaluation`, and call-level `aggregation`). `persistence` now defines
-provider-independent interfaces and deterministic in-memory fakes only. There
-are still no production database models, migrations, queue workers, or
-dashboard code.
+`evaluation`, and call-level `aggregation`). `persistence` defines
+provider-independent interfaces and deterministic in-memory fakes.
+`orchestration` provides deterministic `run_call_pipeline` application
+coordination over those boundaries. There are still no production database
+models, migrations, queue workers, or dashboard code.

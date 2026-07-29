@@ -401,6 +401,43 @@ Append-only log of notable technical decisions. Newest entries last.
 - **No hard delete methods in v1.** Deletion/retention policies remain future
   work tied to privacy and compliance requirements.
 
+## 2026-07-29: Deterministic pipeline orchestration (v1)
+
+- **Orchestration is explicit application logic, not a generic DAG.**
+  `run_call_pipeline` sequences fixed stages with optional
+  `PipelineTarget` (`ROLE_ASSIGNMENT`, `EVALUATION`, `AGGREGATION`). Stage
+  packages and domain models do not import orchestration.
+- **Normalized audio is an explicit request reference.** `Call.audio` remains
+  the ingested/source asset. Orchestration accepts
+  `NormalizedAudioReference` when transcription/diarization must execute and
+  does not redefine `AudioAsset` as normalized.
+- **Providers execute outside unit-of-work transactions.** Read UoW, discard,
+  execute provider/engine, then persist result + status in a fresh UoW commit.
+- **Each successful stage result and status transition commit atomically.**
+  Alignment and aggregation have no dedicated domain status hops; alignment
+  stays compatible with `DIARIZED+`, aggregation leaves `EVALUATED` unchanged.
+- **Persisted canonical results are reused.** One accepted result per
+  call/stage remains the v1 persistence policy; rerun history/supersession is
+  deferred. Equal concurrent inserts reconcile once; unequal conflicts fail.
+- **Exact rubric revisions are required.** No automatic latest-approved
+  selection in the main deterministic flow.
+- **Evaluation and score identities are deterministic.** Evaluation keys use
+  call + rubric + provider/model identity. Score keys add the aggregation
+  policy fingerprint and require an explicit evaluation key on persist.
+- **Persistence state is the resumability checkpoint.** No separate workflow
+  state model.
+- **Retryable vs non-retryable failure status policy.** Retryable provider
+  failures (`unavailable`/`timeout`/repository unavailable) leave the current
+  checkpoint status and do not transition to terminal `FAILED`, preserving
+  resumability. Non-retryable failures may transition to `FAILED` when valid
+  and not concurrently advanced. Aggregation cannot set `FAILED` because
+  `EVALUATED` is terminal. Background retries/backoff belong to future workers.
+- **Status repair requires a complete artifact chain.** Forward-only
+  sequential `advance_to` hops; never ordinal enum comparison; never repair
+  when intermediate artifacts are missing.
+- **Programming errors are not broadly wrapped.** Only known stage/persistence
+  exceptions map to orchestration errors.
+
 ## Open decisions
 
 - **`seller_number` vs `seller_id`.** The specification's canonical metadata
