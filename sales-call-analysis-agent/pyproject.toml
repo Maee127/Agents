@@ -23,6 +23,7 @@ dev = [
     "mypy>=1.13",
     "uvicorn[standard]>=0.32",
     "httpx>=0.27",
+    "alembic>=1.14,<2",
 ]
 asr = [
     "faster-whisper>=1.1,<2",
@@ -36,6 +37,7 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
     "slow: opt-in tests that may load local ASR models (deselect with '-m \"not slow\"')",
+    "postgres: requires live PostgreSQL (enable with RUN_POSTGRES_TESTS=1 and POSTGRES_TEST_URL)",
 ]
 
 [tool.ruff]
