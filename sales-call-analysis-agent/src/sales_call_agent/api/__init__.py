@@ -1,1 +1,1 @@
-"""FastAPI application layer. No endpoints defined yet."""
+"""FastAPI application layer exposing the sales call analysis pipeline."""

@@ -42,7 +42,7 @@ Orchestration coordinates those stages through application-level `orchestration`
 | `aggregation`           | Deterministic call-level score aggregation, coverage metrics, and publication readiness derivation |
 | `orchestration`         | Application service coordinating stage order, reuse, persistence commits, and resumability |
 | `persistence`           | Provider-independent repository contracts, versioned lifecycle semantics, and deterministic in-memory unit-of-work fakes |
-| `api`                   | FastAPI layer serving uploads, results, review access, and dashboard data (no endpoints yet) |
+| `api`                   | FastAPI v1 synchronous boundary: call registration, pipeline execution, rubric reads, evaluation and score retrieval; no business logic |
 
 ## Layering rules
 
@@ -76,5 +76,7 @@ Core pipeline/business boundaries are implemented (`ingestion`, `audio`,
 `evaluation`, and call-level `aggregation`). `persistence` defines
 provider-independent interfaces and deterministic in-memory fakes.
 `orchestration` provides deterministic `run_call_pipeline` application
-coordination over those boundaries. There are still no production database
+coordination over those boundaries. `api` exposes a v1 synchronous FastAPI
+boundary: call registration, synchronous pipeline execution, rubric reads,
+evaluation and call-score retrieval. There are still no production database
 models, migrations, queue workers, or dashboard code.

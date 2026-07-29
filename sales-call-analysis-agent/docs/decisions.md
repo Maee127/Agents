@@ -446,3 +446,128 @@ Append-only log of notable technical decisions. Newest entries last.
   stable primary key, with `seller_number` retained as an external/source
   attribute when available. Final decision requires customer confirmation; the
   specification will then be amended explicitly, not silently.
+
+## 2026-07-29: Synchronous API boundary (v1)
+
+- **Synchronous v1 only.** `POST /api/v1/pipeline-runs` executes
+  `run_call_pipeline(...)` directly in-process and returns when the requested
+  target is reached (200 OK). No background tasks, queues, SSE, WebSockets,
+  or callbacks. Future async variant may return 202 Accepted with job tracking
+  and worker-side execution; that path is documented only, not implemented.
+
+- **Explicit dependency injection via `ApiDependencies`.** The application
+  factory `create_app(dependencies: ApiDependencies)` accepts a frozen, slotted
+  dependency container that wraps `UnitOfWorkFactory` and `PipelineDependencies`.
+  Both fields are `repr=False` to prevent leaking provider or credential state.
+  Router factory functions receive the container as a closure; there is no
+  module-global mutable state.
+
+- **Strict Pydantic v2 schemas with `extra='forbid'`.** All request/response
+  models inherit `StrictApiModel` (`strict=True, extra='forbid'`). Enums reject
+  unknown strings. No silent coercion or trimming.
+
+- **Stable `ApiErrorResponse` and closed `ApiErrorCode` enum.** Every non-2xx
+  response carries `error_code`, `message`, `retryable`, optional `stage`, and
+  optional `field_errors`. The error code set is closed; new application errors
+  must be mapped to existing codes or the set must be extended deliberately.
+
+- **Exception-to-HTTP mapping is centralised in `api/errors.py`.** Persistence
+  errors (not-found, conflict, stale revision, repository unavailable) map to
+  stable 4xx/5xx codes without leaking internal message strings. Orchestration
+  errors map by class hierarchy and `retry_classification`
+  (`RETRYABLE` → 503/504, `CONFLICT_RELOAD_REQUIRED` → 409,
+  `NON_RETRYABLE` → 400/409/502). FastAPI validation errors map to 422 with
+  field-level detail. Programming errors propagate as 500 and are not swallowed.
+
+- **Privacy-safe API outputs.** No storage paths, phone numbers, seller
+  identifiers, transcript text excerpts, rubric definitions/guidance, or
+  knowledge source section text appear in responses or error messages. Rubric
+  endpoints return summary-only (`criterion_ids`, `source_ids`, `status`)
+  without proprietary scoring content. Evaluation responses use transcript
+  segment/word indexes, not text.
+
+- **UoW lifecycle per request.** Each route handler creates a short-lived UoW
+  from the factory for its own reads/writes. The pipeline route delegates to
+  orchestration, which manages its own UoW lifecycle; the route does not wrap
+  orchestration in an outer UoW.
+
+- **Idempotent call registration.** `POST /api/v1/calls` returns 201 on a new
+  call, 200 on an exact idempotent duplicate, and 409 on a same-key/different-
+  value conflict. Idempotency is determined by matching `call_id`, `source_type`,
+  `audio_channels`, `duration_seconds`, `original_filename`, and `content_hash`.
+
+- **`httpx` added to dev extras.** Required for `fastapi.testclient.TestClient`.
+  No runtime `uvicorn` change; uvicorn remains dev-only for this milestone.
+
+- **Future auth/tenant/RBAC/audit path.** Authentication, tenant scoping, audit
+  logging, rate limiting, CORS, and RBAC are planned future milestones and are
+  not implemented. API currently has no access control.
+
+## 2026-07-29 (correction): Synchronous API boundary — applied corrections
+
+Post-plan corrections applied to the initial v1 API boundary implementation:
+
+- **`SecretStr` for storage references.** `CallCreateRequest.original_audio_storage_ref`
+  and `NormalizedAudioReferenceRequest.storage_ref` are `pydantic.SecretStr`.
+  This prevents the value from appearing in model `repr`, schema `str`,
+  validation-error echoes, or log output.  The mapper extracts the raw value
+  exactly once via `get_secret_value()` to construct a domain `Path` or
+  `storage_path`; the value never enters a response or error body.
+
+- **`CallCreateRequest` maps exact domain fields.** All field names mirror the
+  actual `CallMetadata` and `AudioAsset` constructors: `call_id`,
+  `seller_number`, `source_type`, `call_timestamp`, `duration_seconds`,
+  `counterparty_phone`, `original_filename`, `audio_channels`,
+  `original_audio_storage_ref`, `original_audio_content_hash`.  No fields were
+  invented.  The `CallResponse` omits all PII and internal identifiers: only
+  `call_id`, `status`, `revision`, `source_type`, `audio_channels`,
+  `duration_seconds`, and the four `has_*` artifact flags are returned.
+
+- **Per-call list endpoints removed.** `GET /api/v1/calls/{id}/evaluations` and
+  `GET /api/v1/calls/{id}/call-scores` are not implemented in v1.  Reasons:
+  no pagination contract, potentially unbounded results, and provider/model
+  identities in list bodies could expose infrastructure.  Exact-key endpoints
+  suffice for current needs.
+
+- **`RequestValidationError` sanitisation.** The handler builds `field_errors`
+  from Pydantic error entries using only `loc` and `msg`.  The `input` field
+  (which contains the original value) is never included.  This prevents
+  SecretStr values or other sensitive input from appearing in 422 responses.
+
+- **No broad `Exception` handler.** Programming errors are not caught and
+  converted to `ApiErrorResponse`.  FastAPI/TestClient surface them naturally
+  as 500 responses or re-raised exceptions, keeping defects visible.
+
+- **Router factories renamed to `create_*`.** All router factories follow the
+  `create_calls_router`, `create_pipeline_router`, `create_rubrics_router`,
+  `create_results_router` convention.  The `app.py` factory is unchanged
+  (`create_app`).
+
+- **Provider/model fields absent from `PipelineRunRequest`.** The pipeline
+  request schema does not expose `provider_name` or `model_name`.  Extra fields
+  are forbidden (`extra='forbid'`), so passing them returns 422.  Provider
+  selection is entirely server-side via `PipelineDependencies`.
+
+- **`INTERNAL_ERROR` kept in `ApiErrorCode` enum** for future use by production
+  middleware.  No code path in this milestone maps to it through a broad
+  exception handler.
+
+- **OpenAPI description** (`_OPENAPI_DESCRIPTION` in `app.py`) explicitly
+  states the API is local/in-process, deployment-neutral, and that
+  provider/model query parameters are internal operational identifiers — not
+  provider selection controls.
+
+- **Tests use synthetic opaque storage references** of the form
+  `opaque://audio/original/example` and `opaque://audio/normalized/example`.
+  No real paths, phone numbers, transcript text, or rubric wording appear in
+  test fixtures.  Tests assert that these values are absent from all responses
+  and errors.
+
+- **OpenAPI privacy test** (`test_openapi_schema_has_no_sensitive_values`)
+  fetches `/openapi.json` and asserts that no seeded secret identifiers or
+  synthetic opaque storage values appear in the schema document.
+
+- **App isolation test** (`test_create_call_app_isolation`) creates two
+  independent app instances with separate `InMemoryPersistenceStore` instances
+  and verifies that a call registered in app A is not visible in app B.
+
