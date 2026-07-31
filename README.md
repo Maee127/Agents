@@ -40,6 +40,11 @@ flowchart LR
     F --> G["Master Excel Workbook"]
 ```
 
+## Diagram 
+
+PDF catalogue → detected price page → extracted rows → final Excel sheet
+
+
 ## Engineering Highlights
 
 * Page-level PDF processing with PyMuPDF
@@ -126,6 +131,10 @@ flowchart LR
     E --> F["FastAPI Job API"]
     F --> G["Browser Results"]
 ```
+
+## Diagram
+
+Uploaded contract → clause analysis screen → structured risk result
 
 ## Engineering Highlights
 
