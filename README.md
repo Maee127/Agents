@@ -235,6 +235,10 @@ flowchart LR
     I --> J["Reports and Dashboard"]
 ```
 
+## Diagram
+
+Audio → transcript → speaker roles → evaluation report
+
 ## Implemented Foundation
 
 The current implementation includes the following completed or substantially implemented foundations:
