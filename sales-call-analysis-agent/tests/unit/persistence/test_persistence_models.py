@@ -9,6 +9,7 @@ import pytest
 
 from sales_call_agent.aggregation.models import AggregationConfig
 from sales_call_agent.domain.models import Call
+from sales_call_agent.knowledge.models import KnowledgeSource, SalesRubric
 from sales_call_agent.persistence.exceptions import InvalidPersistenceInputError
 from sales_call_agent.persistence.keys import (
     CallScoreKey,
@@ -96,14 +97,14 @@ def test_fingerprint_is_process_stable() -> None:
 
 
 def test_versioned_wrappers_validate_revision(
-    call: object,
-    knowledge_source: object,
-    rubric: object,
+    call: Call,
+    knowledge_source: KnowledgeSource,
+    rubric: SalesRubric,
 ) -> None:
     with pytest.raises(InvalidPersistenceInputError):
-        VersionedCallRecord(value=call, revision=0)  # type: ignore[arg-type]
+        VersionedCallRecord(value=call, revision=0)
     with pytest.raises(InvalidPersistenceInputError):
-        VersionedKnowledgeSourceRecord(value=knowledge_source, revision=True)  # type: ignore[arg-type]
+        VersionedKnowledgeSourceRecord(value=knowledge_source, revision=True)
     with pytest.raises(InvalidPersistenceInputError):
         VersionedRubricRecord(value=rubric, revision=0)
 

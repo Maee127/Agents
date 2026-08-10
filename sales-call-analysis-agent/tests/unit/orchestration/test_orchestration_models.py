@@ -68,11 +68,13 @@ def test_result_key_invariants_per_target(
     target: PipelineTarget, has_evaluation: bool, has_score: bool
 ) -> None:
     evaluation_key = _evaluation_key() if has_evaluation else None
-    score_key = (
-        CallScoreKey(evaluation_key=evaluation_key, aggregation_policy_fingerprint="a" * 64)
-        if has_score
-        else None
-    )
+    score_key = None
+    if has_score:
+        assert evaluation_key is not None
+        score_key = CallScoreKey(
+            evaluation_key=evaluation_key,
+            aggregation_policy_fingerprint="a" * 64,
+        )
     result = RunCallPipelineResult(
         call_id="call-models-001",
         requested_target=target,

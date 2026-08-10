@@ -104,16 +104,14 @@ def test_pipeline_persistence_flow() -> None:
     writer.call_scores.add(call_score_result, evaluation_key=eval_key)
 
     with pytest.raises(RecordNotFoundError):
-        reader_before_commit.calls.get(call.call_id)  # type: ignore[attr-defined]
+        reader_before_commit.calls.get(call.call_id)
 
     writer.commit()
 
     fresh_reader = InMemoryUnitOfWork(store=store)
-    assert fresh_reader.calls.get(call.call_id).value == call  # type: ignore[attr-defined]
-    assert (
-        fresh_reader.processing_results.get_transcription(call.call_id) == transcription_result  # type: ignore[attr-defined]
-    )
-    assert fresh_reader.evaluations.get(eval_key) == evaluation_result  # type: ignore[comparison-overlap]
+    assert fresh_reader.calls.get(call.call_id).value == call
+    assert fresh_reader.processing_results.get_transcription(call.call_id) == transcription_result
+    assert fresh_reader.evaluations.get(eval_key) == evaluation_result
     assert len(fresh_reader.call_scores.list_for_evaluation(eval_key)) == 1
 
     assert "SECRET" not in repr(store)

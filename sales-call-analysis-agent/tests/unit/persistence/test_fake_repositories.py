@@ -6,9 +6,16 @@ from dataclasses import replace
 
 import pytest
 
-from sales_call_agent.domain.models import CallProcessingStatus
+from sales_call_agent.aggregation.models import CallScoreResult
+from sales_call_agent.domain.models import Call, CallProcessingStatus
 from sales_call_agent.evaluation.models import CallEvaluationResult, EvaluationQualityFlag
-from sales_call_agent.knowledge.models import KnowledgeSourceStatus, RubricStatus
+from sales_call_agent.knowledge.models import (
+    KnowledgeSection,
+    KnowledgeSource,
+    KnowledgeSourceStatus,
+    RubricStatus,
+    SalesRubric,
+)
 from sales_call_agent.persistence.exceptions import (
     InvalidPersistenceInputError,
     PersistenceConflictError,
@@ -24,15 +31,16 @@ from sales_call_agent.persistence.fake import (
     InMemoryUnitOfWork,
 )
 from sales_call_agent.persistence.keys import EvaluationKey
+from sales_call_agent.transcription.models import TranscriptionResult
 
 
-def test_call_repository_add_update_and_list(call: object) -> None:
+def test_call_repository_add_update_and_list(call: Call) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
-    first = uow.calls.add(call)  # type: ignore[arg-type]
-    second = uow.calls.add(call)  # type: ignore[arg-type]
+    first = uow.calls.add(call)
+    second = uow.calls.add(call)
     assert first == second
-    updated_call = replace(call, status=CallProcessingStatus.VALIDATED)  # type: ignore[arg-type]
+    updated_call = replace(call, status=CallProcessingStatus.VALIDATED)
     updated = uow.calls.update(updated_call, expected_revision=1)
     assert updated.revision == 2
     assert uow.calls.list_calls()[0].value.status is CallProcessingStatus.VALIDATED
@@ -41,14 +49,14 @@ def test_call_repository_add_update_and_list(call: object) -> None:
 
 
 def test_processing_results_use_single_canonical_record_per_stage(
-    call: object,
-    transcription_result: object,
+    call: Call,
+    transcription_result: TranscriptionResult,
 ) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
-    uow.processing_results.add_transcription(transcription_result)  # type: ignore[arg-type]
-    uow.processing_results.add_transcription(transcription_result)  # type: ignore[arg-type]
-    different = replace(transcription_result, model_name="other_model")  # type: ignore[arg-type]
+    uow.processing_results.add_transcription(transcription_result)
+    uow.processing_results.add_transcription(transcription_result)
+    different = replace(transcription_result, model_name="other_model")
     with pytest.raises(RecordAlreadyExistsError):
         uow.processing_results.add_transcription(different)
     with pytest.raises(RecordNotFoundError):
@@ -56,14 +64,14 @@ def test_processing_results_use_single_canonical_record_per_stage(
 
 
 def test_knowledge_source_lifecycle_and_sections_atomicity(
-    knowledge_source: object,
-    knowledge_sections: tuple[object, ...],
+    knowledge_source: KnowledgeSource,
+    knowledge_sections: tuple[KnowledgeSection, ...],
 ) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
-    record = uow.knowledge.add_source(knowledge_source)  # type: ignore[arg-type]
+    record = uow.knowledge.add_source(knowledge_source)
     assert record.revision == 1
-    updated_source = replace(knowledge_source, status=KnowledgeSourceStatus.APPROVED)  # type: ignore[arg-type]
+    updated_source = replace(knowledge_source, status=KnowledgeSourceStatus.APPROVED)
     updated = uow.knowledge.update_source(updated_source, expected_revision=1)
     assert updated.revision == 2
     same = uow.knowledge.update_source(updated_source, expected_revision=2)
@@ -71,19 +79,21 @@ def test_knowledge_source_lifecycle_and_sections_atomicity(
     with pytest.raises(StaleRecordVersionError):
         uow.knowledge.update_source(updated_source, expected_revision=1)
 
-    uow.knowledge.add_sections("source_001", knowledge_sections)  # type: ignore[arg-type]
+    uow.knowledge.add_sections("source_001", knowledge_sections)
     assert len(uow.knowledge.get_sections("source_001")) == 2
 
-    bad_section = replace(knowledge_sections[0], source_id="source_999")  # type: ignore[arg-type]
+    bad_section = replace(knowledge_sections[0], source_id="source_999")
     with pytest.raises(InvalidPersistenceInputError):
-        uow.knowledge.add_sections("source_001", (bad_section,))  # type: ignore[arg-type]
+        uow.knowledge.add_sections("source_001", (bad_section,))
     assert len(uow.knowledge.get_sections("source_001")) == 2
 
 
-def test_rubric_status_lifecycle_and_semver_latest(rubric: object) -> None:
+def test_rubric_status_lifecycle_and_semver_latest(
+    rubric: SalesRubric,
+) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
-    record = uow.rubrics.add(rubric)  # type: ignore[arg-type]
+    record = uow.rubrics.add(rubric)
     promoted = uow.rubrics.update_status(
         record.value.rubric_id,
         record.value.version,
@@ -106,8 +116,8 @@ def test_rubric_status_lifecycle_and_semver_latest(rubric: object) -> None:
             expected_revision=3,
         )
 
-    lower_approved = replace(rubric, version="1.9.0", status=RubricStatus.APPROVED)  # type: ignore[arg-type]
-    higher_retired = replace(rubric, version="1.10.0", status=RubricStatus.RETIRED)  # type: ignore[arg-type]
+    lower_approved = replace(rubric, version="1.9.0", status=RubricStatus.APPROVED)
+    higher_retired = replace(rubric, version="1.10.0", status=RubricStatus.RETIRED)
     uow.rubrics.add(lower_approved)
     uow.rubrics.add(higher_retired)
     latest = uow.rubrics.get_latest_approved(record.value.rubric_id)
@@ -116,7 +126,7 @@ def test_rubric_status_lifecycle_and_semver_latest(rubric: object) -> None:
 
 def test_evaluation_and_call_score_keys_and_conflicts(
     evaluation_result: CallEvaluationResult,
-    call_score_result: object,
+    call_score_result: CallScoreResult,
 ) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
@@ -134,8 +144,8 @@ def test_evaluation_and_call_score_keys_and_conflicts(
     with pytest.raises(RecordAlreadyExistsError):
         uow.evaluations.add(changed_eval)
 
-    score_key = uow.call_scores.add(call_score_result, evaluation_key=key)  # type: ignore[arg-type]
-    assert uow.call_scores.get(score_key) == call_score_result  # type: ignore[comparison-overlap]
+    score_key = uow.call_scores.add(call_score_result, evaluation_key=key)
+    assert uow.call_scores.get(score_key) == call_score_result
     with pytest.raises(InvalidPersistenceInputError):
         wrong = EvaluationKey(
             call_id="call-other",
@@ -144,35 +154,35 @@ def test_evaluation_and_call_score_keys_and_conflicts(
             provider_name=key.provider_name,
             model_name=key.model_name,
         )
-        uow.call_scores.add(call_score_result, evaluation_key=wrong)  # type: ignore[arg-type]
+        uow.call_scores.add(call_score_result, evaluation_key=wrong)
 
 
 def test_ordering_rules(
-    call: object,
-    knowledge_source: object,
-    rubric: object,
+    call: Call,
+    knowledge_source: KnowledgeSource,
+    rubric: SalesRubric,
     evaluation_result: CallEvaluationResult,
 ) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
-    uow.calls.add(call)  # type: ignore[arg-type]
-    uow.calls.add(replace(call, metadata=replace(call.metadata, call_id="call-zzz")))  # type: ignore[arg-type]
+    uow.calls.add(call)
+    uow.calls.add(replace(call, metadata=replace(call.metadata, call_id="call-zzz")))
     assert tuple(item.value.call_id for item in uow.calls.list_calls()) == (
         "call-abc123def4567890",
         "call-zzz",
     )
 
-    uow.knowledge.add_source(knowledge_source)  # type: ignore[arg-type]
-    uow.knowledge.add_source(replace(knowledge_source, source_id="source_002"))  # type: ignore[arg-type]
+    uow.knowledge.add_source(knowledge_source)
+    uow.knowledge.add_source(replace(knowledge_source, source_id="source_002"))
     assert tuple(item.value.source_id for item in uow.knowledge.list_sources()) == (
         "source_001",
         "source_002",
     )
 
-    uow.rubrics.add(rubric)  # type: ignore[arg-type]
-    uow.rubrics.add(replace(rubric, version="1.10.0"))  # type: ignore[arg-type]
-    uow.rubrics.add(replace(rubric, version="1.9.0"))  # type: ignore[arg-type]
-    versions = uow.rubrics.list_versions(rubric.rubric_id)  # type: ignore[attr-defined]
+    uow.rubrics.add(rubric)
+    uow.rubrics.add(replace(rubric, version="1.10.0"))
+    uow.rubrics.add(replace(rubric, version="1.9.0"))
+    versions = uow.rubrics.list_versions(rubric.rubric_id)
     assert tuple(item.value.version for item in versions) == ("1.0.0", "1.9.0", "1.10.0")
 
     first_key = uow.evaluations.add(evaluation_result)
@@ -189,23 +199,23 @@ def test_ordering_rules(
 
 
 def test_privacy_repr_and_conflict_hierarchy(
-    call: object,
-    knowledge_source: object,
-    rubric: object,
+    call: Call,
+    knowledge_source: KnowledgeSource,
+    rubric: SalesRubric,
 ) -> None:
     store = InMemoryPersistenceStore()
     uow = InMemoryUnitOfWork(store=store)
     assert "SECRET" not in repr(store)
     assert "SECRET" not in repr(uow)
-    uow.calls.add(call)  # type: ignore[arg-type]
+    uow.calls.add(call)
     with pytest.raises(PersistenceConflictError):
-        uow.calls.add(replace(call, status=CallProcessingStatus.VALIDATED))  # type: ignore[arg-type]
-    uow.knowledge.add_source(knowledge_source)  # type: ignore[arg-type]
+        uow.calls.add(replace(call, status=CallProcessingStatus.VALIDATED))
+    uow.knowledge.add_source(knowledge_source)
     with pytest.raises(PersistenceConflictError):
-        uow.knowledge.add_source(replace(knowledge_source, title="CHANGED"))  # type: ignore[arg-type]
-    uow.rubrics.add(rubric)  # type: ignore[arg-type]
+        uow.knowledge.add_source(replace(knowledge_source, title="CHANGED"))
+    uow.rubrics.add(rubric)
     with pytest.raises(PersistenceConflictError):
-        uow.rubrics.add(replace(rubric, description="CHANGED"))  # type: ignore[arg-type]
+        uow.rubrics.add(replace(rubric, description="CHANGED"))
 
 
 def test_failure_injection_is_fake_only(

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from sales_call_agent.persistence.exceptions import RepositoryUnavailableError
 
-
 # psycopg3 SQLSTATE codes for expected integrity violations
 _UNIQUE_VIOLATION = "23505"
 _FOREIGN_KEY_VIOLATION = "23503"

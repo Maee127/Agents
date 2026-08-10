@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from sales_call_agent.diarization.fake import DeterministicFakeDiarizationProvider
+from sales_call_agent.diarization.provider import DiarizationProvider
 from sales_call_agent.domain.models import (
     AudioAsset,
     AudioChannels,
@@ -19,6 +20,7 @@ from sales_call_agent.domain.models import (
     SourceType,
 )
 from sales_call_agent.evaluation.fake import DeterministicFakeEvaluationProvider
+from sales_call_agent.evaluation.provider import EvaluationProvider
 from sales_call_agent.knowledge.models import (
     CriterionOrigin,
     EvidenceRequirement,
@@ -41,11 +43,12 @@ from sales_call_agent.speaker_identity.models import (
     SpeakerRole,
 )
 from sales_call_agent.transcription.fake import DeterministicFakeTranscriptionProvider
+from sales_call_agent.transcription.provider import TranscriptionProvider
 
 
 @dataclass
 class CountingTranscriptionProvider:
-    delegate: Any
+    delegate: TranscriptionProvider
     calls: int = 0
     received_paths: list[str] | None = None
     events: list[str] | None = None
@@ -69,7 +72,7 @@ class CountingTranscriptionProvider:
 
 @dataclass
 class CountingDiarizationProvider:
-    delegate: Any
+    delegate: DiarizationProvider
     calls: int = 0
     received_paths: list[str] | None = None
     events: list[str] | None = None
@@ -93,7 +96,7 @@ class CountingDiarizationProvider:
 
 @dataclass
 class CountingEvaluationProvider:
-    delegate: Any
+    delegate: EvaluationProvider
     calls: int = 0
     events: list[str] | None = None
 

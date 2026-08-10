@@ -19,6 +19,12 @@ class _IneffectiveTzinfo(tzinfo):
     def utcoffset(self, dt: datetime | None) -> timedelta | None:
         return None
 
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None
+
 
 def test_constructs_with_all_valid_fields(metadata_kwargs: dict[str, Any]) -> None:
     metadata = CallMetadata(**metadata_kwargs)

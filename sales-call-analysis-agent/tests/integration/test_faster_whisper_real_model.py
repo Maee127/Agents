@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import wave
+from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
@@ -28,11 +29,7 @@ pytestmark = [
 
 
 def _faster_whisper_available() -> bool:
-    try:
-        import faster_whisper  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    return find_spec("faster_whisper") is not None
 
 
 def _write_short_wav(path: Path, *, seconds: float = 0.4, sample_rate: int = 16000) -> None:

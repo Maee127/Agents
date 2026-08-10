@@ -1,13 +1,20 @@
 """Smoke tests for application configuration."""
 
 import pytest
+from pydantic_settings import SettingsConfigDict
 
 from sales_call_agent.config import Settings
 
 
+class _HermeticSettings(Settings):
+    """Settings variant that does not read a local .env file during tests."""
+
+    model_config = SettingsConfigDict(env_file=None)
+
+
 def make_settings() -> Settings:
     """Build settings without reading a local .env file, so tests are hermetic."""
-    return Settings(_env_file=None)
+    return _HermeticSettings()
 
 
 def test_default_settings_load() -> None:

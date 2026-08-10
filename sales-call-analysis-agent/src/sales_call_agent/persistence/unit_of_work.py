@@ -17,12 +17,23 @@ from sales_call_agent.persistence.repositories import (
 class UnitOfWork(Protocol):
     """Atomic persistence boundary for repository operations."""
 
-    calls: CallRepository
-    processing_results: CallProcessingResultRepository
-    knowledge: KnowledgeRepository
-    rubrics: RubricRepository
-    evaluations: EvaluationRepository
-    call_scores: CallScoreRepository
+    @property
+    def calls(self) -> CallRepository: ...
+
+    @property
+    def processing_results(self) -> CallProcessingResultRepository: ...
+
+    @property
+    def knowledge(self) -> KnowledgeRepository: ...
+
+    @property
+    def rubrics(self) -> RubricRepository: ...
+
+    @property
+    def evaluations(self) -> EvaluationRepository: ...
+
+    @property
+    def call_scores(self) -> CallScoreRepository: ...
 
     def commit(self) -> None: ...
 

@@ -73,6 +73,7 @@ def test_full_fresh_run_to_aggregation(
     role_evidence: tuple[Any, ...],
     dependencies: PipelineDependencies,
     seed_call_and_approved_rubric: Any,
+    store: InMemoryPersistenceStore,
 ) -> None:
     seed_call_and_approved_rubric()
     result = run_call_pipeline(
@@ -82,10 +83,7 @@ def test_full_fresh_run_to_aggregation(
     assert all(item.status is PipelineStageOutcomeStatus.EXECUTED for item in result.stage_outcomes)
     assert result.evaluation_key is not None
     assert result.call_score_key is not None
-    assert (
-        _record(dependencies.unit_of_work_factory.store, call.call_id).value.status
-        is CallProcessingStatus.EVALUATED
-    )
+    assert _record(store, call.call_id).value.status is CallProcessingStatus.EVALUATED
 
 
 def test_role_assignment_target_stops_before_evaluation(
@@ -209,12 +207,13 @@ def test_second_run_reuses_everything_without_provider_calls_or_revision_change(
     counting_transcription_provider: Any,
     counting_diarization_provider: Any,
     counting_evaluation_provider: Any,
+    store: InMemoryPersistenceStore,
 ) -> None:
     seed_call_and_approved_rubric()
     first = run_call_pipeline(_request(call.call_id, normalized_audio, role_evidence), dependencies)
-    before = _record(dependencies.unit_of_work_factory.store, call.call_id).revision
+    before = _record(store, call.call_id).revision
     second = run_call_pipeline(_request(call.call_id, None, ()), dependencies)
-    after = _record(dependencies.unit_of_work_factory.store, call.call_id).revision
+    after = _record(store, call.call_id).revision
     assert first.stage_outcomes != second.stage_outcomes
     assert all(item.status is PipelineStageOutcomeStatus.REUSED for item in second.stage_outcomes)
     assert (
@@ -246,6 +245,7 @@ def test_retryable_diarization_failure_leaves_transcribed_and_rerun_resumes(
     role_evidence: tuple[Any, ...],
     dependencies: PipelineDependencies,
     seed_call_and_approved_rubric: Any,
+    store: InMemoryPersistenceStore,
 ) -> None:
     seed_call_and_approved_rubric()
     failing = DeterministicFakeDiarizationProvider(
@@ -257,10 +257,7 @@ def test_retryable_diarization_failure_leaves_transcribed_and_rerun_resumes(
             _request(call.call_id, normalized_audio, role_evidence), failing_dependencies
         )
     assert raised.value.stage is PipelineStage.DIARIZATION
-    assert (
-        _record(dependencies.unit_of_work_factory.store, call.call_id).value.status
-        is CallProcessingStatus.TRANSCRIBED
-    )
+    assert _record(store, call.call_id).value.status is CallProcessingStatus.TRANSCRIBED
     result = run_call_pipeline(
         _request(call.call_id, normalized_audio, role_evidence), dependencies
     )
@@ -274,6 +271,7 @@ def test_invalid_diarization_response_can_mark_failed_and_terminal_failed_reject
     role_evidence: tuple[Any, ...],
     dependencies: PipelineDependencies,
     seed_call_and_approved_rubric: Any,
+    store: InMemoryPersistenceStore,
 ) -> None:
     seed_call_and_approved_rubric()
     invalid = DeterministicFakeDiarizationProvider(
@@ -285,10 +283,7 @@ def test_invalid_diarization_response_can_mark_failed_and_terminal_failed_reject
             replace(dependencies, diarization_provider=invalid),
         )
     assert raised.value.reason_code is PipelineFailureReason.INVALID_PROVIDER_OUTPUT
-    assert (
-        _record(dependencies.unit_of_work_factory.store, call.call_id).value.status
-        is CallProcessingStatus.FAILED
-    )
+    assert _record(store, call.call_id).value.status is CallProcessingStatus.FAILED
     with pytest.raises(InvalidPipelineRequestError):
         run_call_pipeline(_request(call.call_id, normalized_audio, role_evidence), dependencies)
 
@@ -391,6 +386,7 @@ def test_provider_calls_happen_after_uow_is_released(
     counting_transcription_provider: Any,
     counting_diarization_provider: Any,
     counting_evaluation_provider: Any,
+    store: InMemoryPersistenceStore,
 ) -> None:
     seed_call_and_approved_rubric()
     events: list[str] = []
@@ -399,7 +395,7 @@ def test_provider_calls_happen_after_uow_is_released(
     counting_evaluation_provider.events = events
     logged = replace(
         dependencies,
-        unit_of_work_factory=_LoggingFactory(dependencies.unit_of_work_factory.store, events),
+        unit_of_work_factory=_LoggingFactory(store, events),
     )
     run_call_pipeline(_request(call.call_id, normalized_audio, role_evidence), logged)
     assert events.index("transcribe") > events.index("uow_create")

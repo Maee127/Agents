@@ -130,11 +130,11 @@ def test_missing_optional_dependency_fails_only_on_model_load(
 
 def test_config_rejects_boolean_for_integer_fields() -> None:
     with pytest.raises(FasterWhisperConfigError, match="beam_size"):
-        FasterWhisperConfig(beam_size=True)  # type: ignore[arg-type]
+        FasterWhisperConfig(beam_size=True)
     with pytest.raises(FasterWhisperConfigError, match="device_index"):
-        FasterWhisperConfig(device_index=False)  # type: ignore[arg-type]
+        FasterWhisperConfig(device_index=False)
     with pytest.raises(FasterWhisperConfigError, match="cpu_threads"):
-        FasterWhisperConfig(cpu_threads=True)  # type: ignore[arg-type]
+        FasterWhisperConfig(cpu_threads=True)
 
 
 def test_config_rejects_invalid_device() -> None:

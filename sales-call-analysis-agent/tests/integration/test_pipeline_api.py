@@ -175,7 +175,7 @@ def test_pipeline_run_does_not_accept_provider_or_model_fields() -> None:
     _setup(store)
     client = _make_client(store)
     payload = _pipeline_payload()
-    payload["provider_name"] = "attacker_controlled"  # type: ignore[assignment]
+    payload["provider_name"] = "attacker_controlled"
     resp = client.post("/api/v1/pipeline-runs", json=payload)
     assert resp.status_code == 422
 

@@ -111,7 +111,7 @@ def test_programming_exception_is_not_broadly_wrapped() -> None:
 
 def test_invalid_return_type_is_rejected() -> None:
     class _WrongTypeProvider(_GoodProvider):
-        def transcribe(self, request: TranscriptionRequest) -> TranscriptionResult:  # type: ignore[override]
+        def transcribe(self, request: TranscriptionRequest) -> TranscriptionResult:
             return "not-a-result"  # type: ignore[return-value]
 
     with pytest.raises(InvalidTranscriptionResponseError, match="invalid response object"):

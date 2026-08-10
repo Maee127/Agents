@@ -27,7 +27,7 @@ class InMemoryUnitOfWorkFactory:
 
     store: InMemoryPersistenceStore = field(repr=False)
 
-    def __call__(self) -> InMemoryUnitOfWork:
+    def __call__(self) -> UnitOfWork:
         return InMemoryUnitOfWork(store=self.store)
 
 

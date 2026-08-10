@@ -52,7 +52,7 @@ def test_frozen_immutability() -> None:
 
 def test_boolean_timestamps_rejected() -> None:
     with pytest.raises(InvalidDiarizationResponseError, match="start_seconds"):
-        SpeakerTurn(speaker_label="SPEAKER_00", start_seconds=True, end_seconds=1.0)  # type: ignore[arg-type]
+        SpeakerTurn(speaker_label="SPEAKER_00", start_seconds=True, end_seconds=1.0)
 
 
 def test_zero_length_turn_rejected() -> None:
@@ -211,7 +211,7 @@ def test_boolean_speaker_constraint_rejected() -> None:
             call_id="call-1",
             normalized_audio_path="/tmp/x.asr.wav",
             normalized_audio_hash="abc",
-            exact_expected_speakers=True,  # type: ignore[arg-type]
+            exact_expected_speakers=True,
         )
 
 

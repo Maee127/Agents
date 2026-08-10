@@ -270,13 +270,12 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
     PrimaryKeyConstraint,
-    String,
+    Table,
     Text,
     UniqueConstraint,
     func,
 )
 from sqlalchemy import TIMESTAMP as Timestamp
-from sqlalchemy import Table
 
 from sales_call_agent.infrastructure.postgres.metadata import metadata
 
@@ -303,9 +302,7 @@ calls = Table(
     PrimaryKeyConstraint("call_id", name="pk_calls"),
     CheckConstraint("revision >= 1", name="ck_calls_revision_positive"),
     CheckConstraint("duration_seconds >= 0", name="ck_calls_duration_non_negative"),
-    CheckConstraint(
-        "content_hash ~ '^[0-9a-f]{64}$'", name="ck_calls_content_hash_format"
-    ),
+    CheckConstraint("content_hash ~ '^[0-9a-f]{64}$'", name="ck_calls_content_hash_format"),
 )
 
 # ---------------------------------------------------------------------------
@@ -365,9 +362,7 @@ knowledge_sections = Table(
         name="fk_knowledge_sections_source_id_knowledge_sources",
     ),
     UniqueConstraint("source_id", "ordinal", name="uq_knowledge_sections_source_ordinal"),
-    UniqueConstraint(
-        "source_id", "section_id", name="uq_knowledge_sections_source_section"
-    ),
+    UniqueConstraint("source_id", "section_id", name="uq_knowledge_sections_source_section"),
     CheckConstraint("ordinal >= 0", name="ck_knowledge_sections_ordinal_non_negative"),
     CheckConstraint(
         "content_hash ~ '^[0-9a-f]{64}$'",
@@ -427,9 +422,7 @@ rubric_criteria = Table(
     Column("origin", Text, nullable=False),
     Column("weight", Double, nullable=False),
     Column("warning_codes", ARRAY(Text), nullable=False, server_default="{}"),
-    PrimaryKeyConstraint(
-        "rubric_id", "rubric_version", "criterion_id", name="pk_rubric_criteria"
-    ),
+    PrimaryKeyConstraint("rubric_id", "rubric_version", "criterion_id", name="pk_rubric_criteria"),
     ForeignKeyConstraint(
         ["rubric_id", "rubric_version"],
         ["rubrics.rubric_id", "rubrics.version"],
@@ -441,9 +434,7 @@ rubric_criteria = Table(
         "criterion_order",
         name="uq_rubric_criteria_order",
     ),
-    CheckConstraint(
-        "criterion_order >= 0", name="ck_rubric_criteria_order_non_negative"
-    ),
+    CheckConstraint("criterion_order >= 0", name="ck_rubric_criteria_order_non_negative"),
     CheckConstraint("weight > 0", name="ck_rubric_criteria_weight_positive"),
 )
 
@@ -595,9 +586,7 @@ rubric_source_citations = Table(
         ["knowledge_sections.source_id", "knowledge_sections.section_id"],
         name="fk_rubric_source_citations_section_knowledge_sections",
     ),
-    CheckConstraint(
-        "citation_order >= 0", name="ck_rubric_source_citations_order_non_negative"
-    ),
+    CheckConstraint("citation_order >= 0", name="ck_rubric_source_citations_order_non_negative"),
     CheckConstraint(
         "page_end IS NULL OR (page_start IS NOT NULL AND page_end >= page_start)",
         name="ck_rubric_source_citations_page_range_valid",
@@ -657,9 +646,7 @@ transcription_segments = Table(
         ["transcription_results.call_id"],
         name="fk_transcription_segments_call_id_transcription_results",
     ),
-    CheckConstraint(
-        "segment_order >= 0", name="ck_transcription_segments_order_non_negative"
-    ),
+    CheckConstraint("segment_order >= 0", name="ck_transcription_segments_order_non_negative"),
     CheckConstraint(
         "end_seconds >= start_seconds",
         name="ck_transcription_segments_end_gte_start",
@@ -679,17 +666,13 @@ transcription_words = Table(
     Column("start_seconds", Double, nullable=True),
     Column("end_seconds", Double, nullable=True),
     Column("provider_confidence", JSON, nullable=False, server_default="[]"),
-    PrimaryKeyConstraint(
-        "call_id", "segment_order", "word_order", name="pk_transcription_words"
-    ),
+    PrimaryKeyConstraint("call_id", "segment_order", "word_order", name="pk_transcription_words"),
     ForeignKeyConstraint(
         ["call_id", "segment_order"],
         ["transcription_segments.call_id", "transcription_segments.segment_order"],
         name="fk_transcription_words_segment_order_transcription_segments",
     ),
-    CheckConstraint(
-        "word_order >= 0", name="ck_transcription_words_order_non_negative"
-    ),
+    CheckConstraint("word_order >= 0", name="ck_transcription_words_order_non_negative"),
     CheckConstraint(
         "end_seconds IS NULL OR (start_seconds IS NOT NULL AND end_seconds >= start_seconds)",
         name="ck_transcription_words_end_gte_start",
@@ -741,9 +724,7 @@ diarization_turns = Table(
         name="fk_diarization_turns_call_id_diarization_results",
     ),
     CheckConstraint("turn_order >= 0", name="ck_diarization_turns_order_non_negative"),
-    CheckConstraint(
-        "end_seconds > start_seconds", name="ck_diarization_turns_end_gt_start"
-    ),
+    CheckConstraint("end_seconds > start_seconds", name="ck_diarization_turns_end_gt_start"),
 )
 
 # ---------------------------------------------------------------------------
@@ -787,16 +768,12 @@ alignment_segments = Table(
         ["alignment_results.call_id"],
         name="fk_alignment_segments_call_id_alignment_results",
     ),
-    CheckConstraint(
-        "segment_order >= 0", name="ck_alignment_segments_order_non_negative"
-    ),
+    CheckConstraint("segment_order >= 0", name="ck_alignment_segments_order_non_negative"),
     CheckConstraint(
         "source_segment_index >= 0",
         name="ck_alignment_segments_source_segment_index_non_negative",
     ),
-    CheckConstraint(
-        "end_seconds >= start_seconds", name="ck_alignment_segments_end_gte_start"
-    ),
+    CheckConstraint("end_seconds >= start_seconds", name="ck_alignment_segments_end_gte_start"),
 )
 
 # ---------------------------------------------------------------------------
@@ -816,9 +793,7 @@ alignment_words = Table(
     Column("status", Text, nullable=False),
     Column("overlapping_speech", Boolean, nullable=False, server_default="false"),
     Column("candidates", JSON, nullable=False, server_default="[]"),
-    PrimaryKeyConstraint(
-        "call_id", "segment_order", "word_order", name="pk_alignment_words"
-    ),
+    PrimaryKeyConstraint("call_id", "segment_order", "word_order", name="pk_alignment_words"),
     ForeignKeyConstraint(
         ["call_id", "segment_order"],
         ["alignment_segments.call_id", "alignment_segments.segment_order"],
@@ -874,9 +849,7 @@ role_assignments = Table(
         ["role_assignment_results.call_id"],
         name="fk_role_assignments_call_id_role_assignment_results",
     ),
-    CheckConstraint(
-        "assignment_order >= 0", name="ck_role_assignments_order_non_negative"
-    ),
+    CheckConstraint("assignment_order >= 0", name="ck_role_assignments_order_non_negative"),
 )
 
 # ---------------------------------------------------------------------------
@@ -963,9 +936,7 @@ criterion_evaluations = Table(
         "criterion_id",
         name="uq_criterion_evaluations_criterion_id",
     ),
-    CheckConstraint(
-        "criterion_order >= 0", name="ck_criterion_evaluations_order_non_negative"
-    ),
+    CheckConstraint("criterion_order >= 0", name="ck_criterion_evaluations_order_non_negative"),
 )
 
 # ---------------------------------------------------------------------------

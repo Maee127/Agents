@@ -68,7 +68,7 @@ def test_invalid_config_ratio_rejected(value: object) -> None:
 
 def test_config_boolean_for_numeric_rejected() -> None:
     with pytest.raises(UnsupportedAlignmentConfigurationError):
-        AlignmentConfig(boundary_tolerance_seconds=True)  # type: ignore[arg-type]
+        AlignmentConfig(boundary_tolerance_seconds=True)
 
 
 def test_config_is_frozen() -> None:

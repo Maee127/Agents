@@ -18,18 +18,26 @@ from sales_call_agent.diarization.exceptions import (
 if TYPE_CHECKING:
 
     class _NormalizedArtifactMetadata(Protocol):
-        call_id: str
+        @property
+        def call_id(self) -> str: ...
 
     class _NormalizedArtifactSource(Protocol):
-        metadata: _NormalizedArtifactMetadata
+        @property
+        def metadata(self) -> _NormalizedArtifactMetadata: ...
 
     class _NormalizedArtifactAudio(Protocol):
-        storage_path: str
-        content_hash: str
+        @property
+        def storage_path(self) -> str: ...
+
+        @property
+        def content_hash(self) -> str: ...
 
     class NormalizedArtifact(Protocol):
-        source: _NormalizedArtifactSource
-        normalized_audio: _NormalizedArtifactAudio
+        @property
+        def source(self) -> _NormalizedArtifactSource: ...
+
+        @property
+        def normalized_audio(self) -> _NormalizedArtifactAudio: ...
 
 
 _SAFE_IDENTIFIER_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")

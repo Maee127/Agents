@@ -15,18 +15,25 @@ from sales_call_agent.transcription.fake import (
     DeterministicFakeTranscriptionProvider,
     FakeFailureMode,
 )
-from sales_call_agent.transcription.models import TranscriptionQualityFlag
+from sales_call_agent.transcription.models import (
+    TranscriptionQualityFlag,
+    TranscriptionRequest,
+)
 from sales_call_agent.transcription.provider import run_transcription
 
 
-def test_fake_provider_is_deterministic(transcription_request) -> None:
+def test_fake_provider_is_deterministic(
+    transcription_request: TranscriptionRequest,
+) -> None:
     provider = DeterministicFakeTranscriptionProvider()
     first = run_transcription(provider, transcription_request)
     second = run_transcription(provider, transcription_request)
     assert first == second
 
 
-def test_fake_provider_no_speech_result_is_valid(transcription_request) -> None:
+def test_fake_provider_no_speech_result_is_valid(
+    transcription_request: TranscriptionRequest,
+) -> None:
     provider = DeterministicFakeTranscriptionProvider(
         no_speech_call_ids=frozenset({transcription_request.call_id})
     )
@@ -47,7 +54,9 @@ def test_fake_provider_no_speech_result_is_valid(transcription_request) -> None:
     ],
 )
 def test_fake_provider_failure_modes(
-    transcription_request, mode: FakeFailureMode, expected_exception: type[Exception]
+    transcription_request: TranscriptionRequest,
+    mode: FakeFailureMode,
+    expected_exception: type[Exception],
 ) -> None:
     provider = DeterministicFakeTranscriptionProvider(
         failure_modes_by_call_id={transcription_request.call_id: mode}
@@ -56,7 +65,9 @@ def test_fake_provider_failure_modes(
         run_transcription(provider, transcription_request)
 
 
-def test_fake_provider_unsupported_language_without_failure_mode(transcription_request) -> None:
+def test_fake_provider_unsupported_language_without_failure_mode(
+    transcription_request: TranscriptionRequest,
+) -> None:
     provider = DeterministicFakeTranscriptionProvider(supported_languages=frozenset({"fa"}))
     with pytest.raises(UnsupportedTranscriptionLanguageError):
         run_transcription(provider, transcription_request)

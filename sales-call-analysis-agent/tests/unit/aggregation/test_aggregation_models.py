@@ -31,7 +31,7 @@ def test_config_validation() -> None:
     with pytest.raises(InvalidAggregationInputError):
         AggregationConfig(minimum_scored_criterion_coverage=-0.1)
     with pytest.raises(InvalidAggregationInputError):
-        AggregationConfig(minimum_scored_weight_coverage=True)  # type: ignore[arg-type]
+        AggregationConfig(minimum_scored_weight_coverage=True)
 
 
 def test_contribution_human_review_consistency() -> None:
