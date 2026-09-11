@@ -1,12 +1,59 @@
 # Sales Call Analysis Agent
 
-Agent that analyzes recorded sales calls end to end: ingestion, audio
-preprocessing, transcription, speaker diarization, speaker identification, and
-rubric-based evaluation backed by a PostgreSQL + pgvector knowledge base.
+A modular AI system for turning recorded sales conversations into structured,
+speaker-aware, and evidence-grounded performance insights.
 
-> **Status: scaffold only.** The repository structure, configuration, and
-> tooling are in place; no business logic is implemented yet.
-> See `docs/project-specification.md` (source of truth) and
+The pipeline processes calls through ingestion, audio normalization,
+transcription, speaker diarization and alignment, speaker-role assignment,
+knowledge retrieval, and rubric-based evaluation.
+
+Its goal is to help sales managers review calls more consistently, identify
+recurring coaching opportunities, and transform conversations into measurable
+performance data without manually listening to every recording.
+
+## Project Status
+
+**Status: Active engineering build**
+
+The core foundations for the Sales Call Analysis Agent are already implemented, including:
+
+- local audio ingestion and validation
+- canonical audio normalization with FFmpeg
+- provider-independent transcription interfaces
+- hardened `faster-whisper` integration
+- provider-independent diarization interfaces
+- deterministic transcript-speaker alignment
+- privacy-aware domain models and exception handling
+- persistence foundations with PostgreSQL, SQLAlchemy, Alembic, and pgvector
+- orchestration foundations and automated tests
+
+### Current Development
+
+Development is progressing incrementally across the remaining application layers, including:
+
+- speaker-role assignment (`SELLER`, `CUSTOMER`, `UNKNOWN`)
+- persistence and unit-of-work integration
+- pipeline orchestration
+- API integration
+- knowledge-base and rubric evaluation
+- call-level and team-level reporting
+
+
+### Remaining Product Roadmap
+
+- complete persistent storage across the processing pipeline
+- complete orchestration and background execution
+- upload and result APIs
+- knowledge-base ingestion
+- configurable sales rubrics
+- retrieval-augmented evaluation
+- evidence-grounded scoring
+- call-level and team-level reporting
+- management dashboard
+- observability, security, and production hardening
+
+
+> See `docs/project-specification.md` for the project source of truth and
 > `docs/architecture.md`.
 
 ## Requirements
