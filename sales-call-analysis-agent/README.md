@@ -11,6 +11,31 @@ Its goal is to help sales managers review calls more consistently, identify
 recurring coaching opportunities, and transform conversations into measurable
 performance data without manually listening to every recording.
 
+## Business Value
+
+Sales teams generate large volumes of recorded conversations, but managers cannot manually review every call consistently.
+
+This creates several common problems:
+
+- coaching depends on a small sample of calls;
+- recurring sales mistakes can remain hidden;
+- evaluation standards may differ between managers;
+- important evidence is difficult to compare across a team;
+- call recordings remain underused as a source of performance data.
+
+The Sales Call Analysis Agent is designed to turn those recordings into structured, speaker-aware, and reviewable information.
+
+Its intended value is to help organizations:
+
+- review more calls without requiring managers to listen to every recording;
+- identify recurring coaching opportunities;
+- evaluate calls against consistent sales rubrics;
+- preserve transcript evidence behind scores and feedback;
+- compare performance across calls and, eventually, across teams;
+- convert conversational data into measurable management insights.
+
+The objective is not to replace sales managers or coaches, but to give them a more consistent and evidence-grounded way to inspect call quality.
+
 ## Project Status
 
 **Status: Active engineering build**
@@ -55,6 +80,22 @@ Development is progressing incrementally across the remaining application layers
 
 > See `docs/project-specification.md` for the project source of truth and
 > `docs/architecture.md`.
+
+## Current Limitations
+
+The project is still an active engineering build and should not yet be interpreted as a production-ready sales analytics platform.
+
+Current limitations include:
+
+- speaker-role assignment is still under active development;
+- rubric-based evaluation is not yet complete;
+- management reporting and dashboard layers are still planned;
+- production authentication and authorization are not implemented;
+- large-scale evaluation across diverse call types has not yet been completed;
+- production-grade monitoring, deployment, and operational controls are still future work;
+- real-world use requires appropriate consent, privacy controls, and organization-specific retention policies.
+
+The current focus is on building and validating the processing foundation before expanding into higher-level evaluation and reporting.
 
 ## Requirements
 
