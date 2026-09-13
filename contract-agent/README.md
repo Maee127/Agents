@@ -1,131 +1,277 @@
 # Contract Agent
 
-An AI-powered contract analysis agent that extracts key terms, flags risks, and summarizes legal agreements with intelligent memory of past documents.
+A local-first AI system for clause-level contract review, structured risk analysis, and evidence-aware decision support.
 
-## Overview
+The Contract Agent processes PDF and TXT agreements, identifies clause boundaries, analyzes each clause with a locally hosted language model, validates structured findings against the source text, and exposes the results through a FastAPI backend and lightweight browser interface.
 
-The Contract Agent is designed to help users quickly understand and analyze contracts by:
+The goal is to make first-pass contract review faster and more consistent while keeping final legal judgment with a qualified human reviewer.
 
-1. **Extracting Key Terms** — Automatically identifies and extracts:
-   - Key obligations and commitments
-   - Important dates and deadlines
-   - Payment terms and renewal clauses
-   - Liability caps and other critical clauses
-
-2. **Risk Flagging** — Highlights potential issues with:
-   - Unusual or non-standard clauses
-   - Missing standard protections
-   - Ambiguous or unclear wording
-   - Plain-language explanations of why each issue is flagged
-
-3. **Smart Summarization** — Provides a concise one-paragraph summary of what the document commits you to
-
-4. **Document Memory** — Remembers past contracts from the same client, enabling comparative analysis like:
-   - "This clause is stricter than your usual contracts"
-   - Identification of deviations from established patterns
-
-## Features
-
-- 📄 PDF and email thread support
-- 🚩 Intelligent risk detection with explanations
-- 💾 Client-based document memory and comparison
-- 🤖 Powered by OpenAI
-- ⚡ Fast contract analysis and summarization
-
-## Tech Stack
-
-- **Python** 3.13
-- **FastAPI + Uvicorn** — Web API and built-in browser UI
-- **Qwen2.5-7B (local)** — Clause analysis via Transformers
-- **PyPDF** — PDF processing and extraction
-- **PyTorch & Transformers** — NLP and model support
-- **Accelerate** — GPU acceleration support
-- **python-dotenv** — Environment configuration
-
-## Installation
-
-### Prerequisites
-- Python 3.13
-- API keys for OpenAI
-
-
-## Project Structure
-
-```
-contract-agent/
-├── app/                    # Application code
-├── src/                    # Source modules
-├── tests/                  # Test suite
-├── train-agent.ipynb      # Training and demonstration notebook
-├── check_files.py         # File structure validation script
-├── requirements.txt       # Python dependencies
-└── .env                   # Environment variables 
-```
-
-
-### Running the Web App (MVP)
-
-Install dependencies and start the server:
-
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-Then open http://127.0.0.1:8000 in your browser. Upload a `.pdf` or
-`.txt` contract and watch the clause-by-clause analysis with live
-progress. Interactive API docs are available at
-http://127.0.0.1:8000/docs.
-
-> **Note:** the first analysis loads the local Qwen2.5-7B model into
-> memory, which can take several minutes (especially on CPU).
-
-### Running the Script
-
-Check the file structure and verify required files:
-```bash
-python check_files.py
-```
-
-## Usage Example
-
-(Implementation details will depend on the specific agent code in `src/` and `app/`)
-
-```python
-# Example usage pattern
-from contract_agent import ContractAnalyzer
-
-analyzer = ContractAnalyzer()
-result = analyzer.analyze_contract("path/to/contract.pdf")
-
-# Output includes:
-# - Key terms extracted
-# - Risk flags with explanations
-# - Executive summary
-# - Comparison with past client documents
-```
-
-
-## Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| ollama | 2.5-7b | qwen2.5-7b |
-| pypdf | 6.14.2 | PDF document parsing |
-| torch | Latest | Deep learning framework |
-| transformers | Latest | NLP models and utilities |
-| accelerate | Latest | GPU acceleration |
-| python-dotenv | Latest | Environment configuration |
-
-## Future Enhancements
-
-- [ ] Support for additional document formats (DOCX, RTF)
-- [ ] Multi-language contract analysis
-- [ ] Integration with contract management systems
-- [ ] Custom risk threshold configuration
-- [ ] Batch contract processing
-- [ ] Web interface for easy access
+![Contract Agent Architecture](../docs/images/contract_agent_architecture.png)
 
 ---
 
-**Note:** This agent is designed for analysis and summary purposes. Always have qualified legal professionals review contracts before signing.
+## Business Problem
+
+Long contracts are difficult to review consistently, especially when important obligations, unusual terms, and potential risks are distributed across many pages.
+
+This creates several common problems:
+
+- reviewers spend significant time locating relevant clauses;
+- important obligations may be overlooked during manual review;
+- risk assessment can vary between reviewers;
+- supporting evidence may become separated from the conclusion;
+- repetitive first-pass review consumes time that could be spent on higher-value legal analysis.
+
+The Contract Agent is designed to support a more structured and reviewable first-pass workflow.
+
+---
+
+## Business Value
+
+Its intended value is to help users:
+
+- identify and separate contract clauses automatically;
+- surface obligations, summaries, and potential risk signals;
+- preserve supporting source text behind findings;
+- review contracts through a consistent structured schema;
+- isolate failures so one problematic clause does not stop the entire analysis;
+- reduce repetitive review work while keeping final judgment with a qualified human reviewer.
+
+The system is intended as **decision support, not as a replacement for professional legal advice**.
+
+---
+
+## Current Workflow
+
+```text
+PDF / TXT Contract
+        ↓
+Document Ingestion
+        ↓
+Clause-Aware Chunking
+        ↓
+Local LLM Analysis
+        ↓
+Structured Output Validation
+        ↓
+Source-Evidence Verification
+        ↓
+Background Processing
+        ↓
+FastAPI / Browser Results
+```
+
+---
+
+## Implemented Features
+
+- PDF and TXT document ingestion
+- detection of empty and unsupported documents
+- scanned-document handling
+- structural clause splitting
+- sentence-boundary fallback
+- local Qwen2.5-7B inference through Transformers
+- structured clause verdicts
+- clause type and summary outputs
+- obligation extraction
+- risk-level classification
+- source-quote verification
+- rejection of unsupported risk evidence
+- per-clause failure isolation
+- progress callbacks
+- in-memory background job processing
+- upload type and size validation
+- FastAPI endpoints
+- lightweight browser interface
+- unit and integration test organization
+
+---
+
+## Engineering Highlights
+
+### Local-First Inference
+
+Contract content can be analyzed using a locally stored Qwen2.5-7B model rather than requiring contract text to be sent to a hosted inference provider.
+
+### Structured AI Outputs
+
+Model responses are converted into structured findings rather than being treated as unrestricted free-form text.
+
+This makes downstream validation and presentation more predictable.
+
+### Evidence Verification
+
+Risk findings are checked against the original clause text so unsupported evidence can be rejected rather than silently accepted.
+
+### Clause-Level Failure Isolation
+
+A failure while analyzing one clause does not necessarily terminate the analysis of the entire contract.
+
+### Document-Aware Chunking
+
+The system first attempts to preserve structural contract boundaries and falls back to sentence-aware splitting when necessary.
+
+### Human Review by Design
+
+The system exposes findings as reviewable decision-support material rather than presenting model output as authoritative legal judgment.
+
+---
+
+## Tech Stack
+
+### Application
+
+- Python 3.13
+- FastAPI
+- Uvicorn
+
+### AI and NLP
+
+- Qwen2.5-7B
+- Transformers
+- PyTorch
+- Accelerate
+
+### Document Processing
+
+- PyPDF
+
+### Validation and Configuration
+
+- Pydantic
+- python-dotenv
+
+### Engineering
+
+- pytest
+- local model execution
+- structured validation
+- background processing
+
+---
+
+## Installation
+
+### Requirements
+
+- Python 3.13
+- sufficient local resources for the selected Qwen2.5-7B model
+- compatible local model files
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+
+# Windows:
+# .venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Configure required environment variables locally.
+
+Do not commit `.env` files or credentials.
+
+---
+
+## Running the Application
+
+Start the FastAPI application:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Open the browser interface:
+
+```text
+http://127.0.0.1:8000
+```
+
+Interactive API documentation is available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Upload a supported `.pdf` or `.txt` contract to begin clause-level analysis.
+
+> The first analysis may take longer because the local language model must be loaded into memory.
+
+---
+
+## Testing
+
+Run the test suite with:
+
+```bash
+pytest
+```
+
+Tests are organized around the document-processing, analysis, validation, and application layers.
+
+---
+
+## Project Structure
+
+```text
+contract-agent/
+├── app/
+├── src/
+├── tests/
+├── train-agent.ipynb
+├── check_files.py
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Current Limitations
+
+The current implementation is a local MVP and has not been validated as a production legal-review system.
+
+Current limitations include:
+
+- analysis quality depends on document structure and text-extraction quality;
+- scanned or visually complex documents may require additional preprocessing;
+- local language-model outputs can still be incomplete or incorrect;
+- legal interpretation varies by jurisdiction and contract context;
+- the current background-processing model is suitable for local MVP use rather than high-scale production workloads;
+- authentication, authorization, persistent job management, monitoring, and production deployment controls are not yet complete.
+
+All findings should be reviewed by a qualified legal professional before they are used for legal or business decisions.
+
+---
+
+## Future Development
+
+Potential future work includes:
+
+- support for additional document formats such as DOCX and RTF;
+- multilingual contract analysis;
+- persistent job storage;
+- authentication and access control;
+- configurable risk policies;
+- batch contract processing;
+- contract-management-system integration;
+- production monitoring and observability;
+- comparative analysis across approved contract collections.
+
+---
+
+## Responsible Use
+
+Contract Agent provides automated analysis for educational and decision-support purposes.
+
+AI-generated findings may be incomplete, incorrect, or inappropriate for a particular jurisdiction or contract context.
+
+**The system does not provide legal advice.**
+
+Qualified legal professionals should review contracts and model-generated findings before legal or business decisions are made.
