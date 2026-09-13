@@ -101,6 +101,30 @@ flowchart LR
     E --> F["FastAPI job API"]
     F --> G["Browser results"]
 ```
+## Business Value
+
+Product and pricing data is often trapped inside visually inconsistent PDF catalogues that are difficult to process reliably with fixed-coordinate or text-only extraction methods.
+
+This creates several operational problems:
+
+- manual catalogue review is slow and repetitive;
+- product tables may use different layouts across brands or versions;
+- important rows can be missed during manual transcription;
+- inconsistent formatting makes downstream comparison difficult;
+- teams may spend significant time cleaning extracted data before it can be used.
+
+The Catalog Vision Extractor is designed to turn those documents into structured, reviewable business data.
+
+Its intended value is to help organizations:
+
+- reduce repetitive manual catalogue processing;
+- identify relevant price-table pages automatically;
+- extract product and pricing data into a consistent structure;
+- validate and normalize results before export;
+- flag low-confidence cases for human review;
+- consolidate results into a usable Excel workbook.
+
+The system is especially useful when document layouts vary enough that simple OCR or fixed-template extraction would be fragile.
 
 ### Engineering highlights
 
@@ -224,3 +248,18 @@ This is a portfolio repository, not a hosted multi-tenant service.
 AI-generated extraction and analysis can be incomplete or incorrect. Treat all outputs as reviewable decision-support data and verify important results against the source document.
 
 Never commit API keys, model files, private contracts, customer catalogues, generated caches, or exported business data to the repository.
+
+## Current Limitations
+
+The current implementation is a portfolio-scale extraction pipeline and has not been validated across every catalogue style or industry.
+
+Current limitations include:
+
+- extraction quality depends on document quality and visual layout;
+- highly unusual or ambiguous tables may require manual review;
+- vision-model outputs can still contain errors or omissions;
+- very large catalogues may require cost and performance tuning;
+- the workflow currently targets structured Excel output rather than direct ERP or PIM integration;
+- production deployment would require stronger monitoring, access controls, and operational safeguards.
+
+Low-confidence review flags and deterministic validation are used to reduce the risk of silently accepting incorrect model output.
